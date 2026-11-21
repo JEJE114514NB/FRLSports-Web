@@ -30,6 +30,15 @@
             <img src="assets/images/frlsports-logo-1400.png" alt="FRLSports" width="220" height="51" fetchpriority="high">
           </picture>
         </a>
+        <div class="language-switch">
+          <span class="language-kicker">LANG</span>
+          <select id="languageSelect" aria-label="选择语言">
+            <option value="zh-Hans">简体</option>
+            <option value="zh-Hant">繁體</option>
+            <option value="en">English</option>
+            <option value="ja">日本語</option>
+          </select>
+        </div>
         <span class="brand-divider" aria-hidden="true"></span>
         <span class="brand-tag">OFFICIAL<br>SITE</span>
 
@@ -48,6 +57,9 @@
           </a>
           <a class="nav-link" href="teams.html">
             <span>车队</span><small>TEAMS</small>
+          </a>
+          <a class="nav-link" href="products.html">
+            <span>产品</span><small>PRODUCTS</small>
           </a>
           <a class="nav-link" href="about.html">
             <span>关于</span><small>ABOUT</small>
@@ -201,7 +213,8 @@
         <a class="mobile-link" href="news.html"><span>03</span>新闻<small>NEWS</small></a>
         <a class="mobile-link" href="posters.html"><span>04</span>海报<small>POSTERS</small></a>
         <a class="mobile-link" href="teams.html"><span>05</span>车队<small>TEAMS</small></a>
-        <a class="mobile-link" href="about.html"><span>06</span>关于<small>ABOUT</small></a>
+        <a class="mobile-link" href="products.html"><span>06</span>产品<small>PRODUCTS</small></a>
+        <a class="mobile-link" href="about.html"><span>07</span>关于<small>ABOUT</small></a>
       </nav>
       <div class="mobile-meta">
         <span>OFFICIAL WEBSITE</span>
@@ -235,7 +248,7 @@
           <p class="dev-kicker">PRIVATE AREA / 2026</p>
           <h1 class="dev-access-display">开发者<br><span>控制台</span></h1>
           <p class="dev-access-copy">
-            管理首页轮播、新闻、其他海报、车队与赞助商。内容可写入 site-data.js，前端直接读取，无需后端 API 或数据库。
+            管理首页轮播、赛事存档、新闻、其他海报、车队、产品与赞助商。内容可写入 site-data.js，前端直接读取，无需后端 API 或数据库。
           </p>
           <div class="dev-access-stats">
             <div><span>ACCESS</span><strong>RESTRICTED</strong></div>
@@ -249,7 +262,7 @@
           <form class="dev-access-form" id="devGateForm" novalidate>
             <p class="dev-kicker">RESTRICTED ACCESS / 内容管理</p>
             <h2 class="dev-access-title" id="devAccessTitle">进入开发者模式</h2>
-            <p class="dev-access-desc">输入访问密码，管理首页海报、新闻、其他海报、车队与赞助商内容。</p>
+            <p class="dev-access-desc">输入访问密码，管理首页海报、赛事、新闻、其他海报、车队、产品与赞助商内容。</p>
             <label class="dev-label" for="devPassword">ACCESS CODE</label>
             <input class="dev-input" id="devPassword" name="password" type="password"
                    autocomplete="off" spellcheck="false" placeholder="输入访问密码">
@@ -281,6 +294,9 @@
             </button>
             <button class="dev-rail-link" type="button" data-dev-view="teams">
               <i aria-hidden="true"></i><div><strong>车队管理</strong><small>TEAMS</small></div>
+            </button>
+            <button class="dev-rail-link" type="button" data-dev-view="products">
+              <i aria-hidden="true"></i><div><strong>产品管理</strong><small>PRODUCTS</small></div>
             </button>
             <button class="dev-rail-link" type="button" data-dev-view="sponsors">
               <i aria-hidden="true"></i><div><strong>赞助商</strong><small>SPONSORS</small></div>
@@ -484,6 +500,78 @@
 
             <div class="dev-workspace-foot">
               <span>Logo 会保留比例并压缩；QQ 群选填，填写后会显示在车队卡片中。</span>
+              <span>STATIC FILE / site-data.js</span>
+            </div>
+          </section>
+
+          <section class="dev-view" data-dev-view="products" hidden>
+            <div class="dev-workspace-head">
+              <div>
+                <p class="dev-kicker">PRODUCTS / 产品</p>
+                <h1>产品管理</h1>
+                <p>添加产品名称、中文名称、Logo、价格和简介。内容会显示在官网“产品”页面。</p>
+              </div>
+              <div class="dev-workspace-actions">
+                <span class="dev-count" id="productCount">0 个产品</span>
+              </div>
+            </div>
+
+            <div class="dev-workspace-body">
+              <div class="dev-editor-layout">
+                <form class="dev-form" id="productForm" novalidate>
+                  <p class="dev-kicker">PRODUCT ENTRY / 新产品</p>
+                  <label class="dev-field">
+                    <span>名称</span>
+                    <input id="productName" type="text" maxlength="80" placeholder="例如：FRLS Racing Wheel" autocomplete="off">
+                  </label>
+                  <label class="dev-field">
+                    <span>中文名称</span>
+                    <input id="productNameZh" type="text" maxlength="40" placeholder="例如：FRLS 赛车方向盘" autocomplete="off">
+                  </label>
+                  <label class="dev-field">
+                    <span>价格（选填）</span>
+                    <input id="productPrice" type="text" maxlength="40" placeholder="例如：¥ 1,299" autocomplete="off">
+                  </label>
+                  <label class="dev-field">
+                    <span>简介</span>
+                    <textarea id="productIntro" rows="4" maxlength="600" placeholder="输入产品简介"></textarea>
+                  </label>
+                  <div class="dev-field">
+                    <span>Logo（必填）</span>
+                    <div class="dev-image-picker">
+                      <input class="dev-file" id="productLogoInput" type="file" accept="image/png,image/jpeg,image/webp" hidden>
+                      <button class="dev-btn dev-btn--ghost" id="productLogoPick" type="button">选择 Logo</button>
+                      <button class="dev-btn dev-btn--ghost" id="productLogoClear" type="button" hidden>移除 Logo</button>
+                      <div class="dev-image-preview dev-image-preview--logo" id="productLogoPreview">
+                        <span>PRODUCT LOGO PREVIEW</span>
+                        <img alt="产品 Logo 预览" hidden>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="dev-field">
+                    <span>产品介绍图（可选）</span>
+                    <div class="dev-image-picker">
+                      <input class="dev-file" id="productImagesInput" type="file" accept="image/png,image/jpeg,image/webp" multiple hidden>
+                      <button class="dev-btn dev-btn--ghost" id="productImagesPick" type="button">选择介绍图</button>
+                      <button class="dev-btn dev-btn--ghost" id="productImagesClear" type="button" hidden>清空介绍图</button>
+                      <div class="product-images-preview" id="productImagesPreview"></div>
+                    </div>
+                  </div>
+                  <p class="dev-error" id="productError" role="alert"></p>
+                  <div class="dev-form-actions">
+                    <button class="dev-btn dev-btn--primary" type="submit">添加产品</button>
+                  </div>
+                </form>
+
+                <div class="dev-editor-list">
+                  <div class="dev-list-head"><span>已添加产品</span><span>DELETE TO REMOVE</span></div>
+                  <div class="product-admin-list" id="productAdminList"></div>
+                </div>
+              </div>
+            </div>
+
+            <div class="dev-workspace-foot">
+              <span>价格选填，留空则不显示；Logo 会保留比例并压缩。</span>
               <span>STATIC FILE / site-data.js</span>
             </div>
           </section>
