@@ -252,6 +252,7 @@
   const sponsorError = document.getElementById("sponsorError");
   const sponsorCount = document.getElementById("sponsorCount");
   const sponsorAdminList = document.getElementById("sponsorAdminList");
+  const sponsorCancelEdit = document.getElementById("sponsorCancelEdit");
   const teamForm = document.getElementById("teamForm");
   const teamName = document.getElementById("teamName");
   const teamNameZh = document.getElementById("teamNameZh");
@@ -264,6 +265,7 @@
   const teamError = document.getElementById("teamError");
   const teamCount = document.getElementById("teamCount");
   const teamAdminList = document.getElementById("teamAdminList");
+  const teamCancelEdit = document.getElementById("teamCancelEdit");
   const teamGrid = document.getElementById("teamGrid");
   const teamEmpty = document.getElementById("teamEmpty");
   const productGrid = document.getElementById("productGrid");
@@ -284,6 +286,7 @@
   const productError = document.getElementById("productError");
   const productCount = document.getElementById("productCount");
   const productAdminList = document.getElementById("productAdminList");
+  const productCancelEdit = document.getElementById("productCancelEdit");
   const eventGrid = document.getElementById("eventGrid");
   const eventEmpty = document.getElementById("eventEmpty");
   const eventImportPick = document.getElementById("eventImportPick");
@@ -314,7 +317,10 @@
     galleryBusy: false,
     sponsorBusy: false,
     teamBusy: false,
-    productBusy: false
+    productBusy: false,
+    teamEditingId: "",
+    sponsorEditingId: "",
+    productEditingId: ""
   };
 
   const posterState = {
@@ -2163,8 +2169,12 @@
 
     items.forEach(function (product, index) {
       const card = document.createElement("article");
-      card.className = "product-card";
+      card.className = "product-card is-clickable";
       card.dataset.id = product.id;
+      card.dataset.productOpen = product.id;
+      card.tabIndex = 0;
+      card.setAttribute("role", "button");
+      card.setAttribute("aria-label", product.name + "，查看产品详情");
 
       const logo = document.createElement("div");
       logo.className = "product-card__logo";
@@ -2179,27 +2189,10 @@
       }
 
       const body = detailElement("div", "product-card__body");
-      body.append(detailElement("span", "product-card__index", "PRODUCT / " + padPosterNumber(index + 1)));
       const name = detailElement("h2", "", product.name);
       body.append(name);
       body.append(detailElement("p", "product-card__zh", product.nameZh));
       if (product.price) body.append(detailElement("strong", "product-card__price", product.price));
-      body.append(detailElement("p", "product-card__intro", product.intro));
-
-      if (product.images && product.images.length) {
-        const gallery = detailElement("div", "product-card__gallery");
-        product.images.forEach(function (src, imageIndex) {
-          const image = document.createElement("img");
-          image.src = src;
-          image.alt = product.name + " 产品介绍图 " + (imageIndex + 1);
-          image.loading = "lazy";
-          image.addEventListener("click", function () {
-            openPosterLightbox(src, image.alt, product.name, "产品介绍图 / PRODUCT IMAGE");
-          });
-          gallery.append(image);
-        });
-        body.append(gallery);
-      }
 
       card.append(logo, body);
       productGrid.append(card);
@@ -2240,13 +2233,20 @@
         info.append(detailElement("small", "", product.images.length + " 张介绍图"));
       }
 
+      const actions = detailElement("div", "dev-row-actions");
+      const edit = document.createElement("button");
+      edit.className = "dev-action";
+      edit.type = "button";
+      edit.dataset.productEdit = product.id;
+      edit.textContent = "编辑";
       const remove = document.createElement("button");
       remove.className = "dev-action dev-action--delete";
       remove.type = "button";
       remove.dataset.productDelete = product.id;
       remove.textContent = "删除";
+      actions.append(edit, remove);
 
-      row.append(logo, info, remove);
+      row.append(logo, info, actions);
       productAdminList.append(row);
     });
   }
@@ -2346,13 +2346,20 @@
         info.append(qq);
       }
 
+      const actions = detailElement("div", "dev-row-actions");
+      const edit = document.createElement("button");
+      edit.className = "dev-action";
+      edit.type = "button";
+      edit.dataset.teamEdit = team.id;
+      edit.textContent = "编辑";
       const remove = document.createElement("button");
       remove.className = "dev-action dev-action--delete";
       remove.type = "button";
       remove.dataset.teamDelete = team.id;
       remove.textContent = "删除";
+      actions.append(edit, remove);
 
-      row.append(logo, info, remove);
+      row.append(logo, info, actions);
       teamAdminList.append(row);
     });
   }
@@ -2500,13 +2507,20 @@
         info.append(note);
       }
 
+      const actions = detailElement("div", "dev-row-actions");
+      const edit = document.createElement("button");
+      edit.className = "dev-action";
+      edit.type = "button";
+      edit.dataset.sponsorEdit = sponsor.id;
+      edit.textContent = "编辑";
       const remove = document.createElement("button");
       remove.className = "dev-action dev-action--delete";
       remove.type = "button";
       remove.dataset.sponsorDelete = sponsor.id;
       remove.textContent = "删除";
+      actions.append(edit, remove);
 
-      row.append(logo, info, remove);
+      row.append(logo, info, actions);
       sponsorAdminList.append(row);
     });
   }
@@ -2773,11 +2787,23 @@
     if (newsError) newsError.textContent = "";
   }
 
+  function setFormEditMode(form, cancelButton, editing, addLabel, addKicker, editKicker) {
+    if (cancelButton) cancelButton.hidden = !editing;
+    if (form) {
+      const submit = form.querySelector('button[type="submit"]');
+      if (submit) submit.textContent = editing ? "保存修改" : addLabel;
+      const kicker = form.querySelector(".dev-kicker");
+      if (kicker) kicker.textContent = editing ? editKicker : addKicker;
+    }
+  }
+
   function resetSponsorForm() {
     if (sponsorName) sponsorName.value = "";
     if (sponsorUrl) sponsorUrl.value = "";
     siteState.sponsorDraftImage = "";
+    siteState.sponsorEditingId = "";
     setSponsorDraftImage("");
+    setFormEditMode(sponsorForm, sponsorCancelEdit, false, "添加赞助商", "SPONSOR ENTRY / 新赞助商", "EDIT SPONSOR / 编辑赞助商");
     if (sponsorImageInput) sponsorImageInput.value = "";
     if (sponsorError) sponsorError.textContent = "";
   }
@@ -2788,7 +2814,9 @@
     if (teamIntro) teamIntro.value = "";
     if (teamQq) teamQq.value = "";
     siteState.teamDraftImage = "";
+    siteState.teamEditingId = "";
     setTeamDraftImage("");
+    setFormEditMode(teamForm, teamCancelEdit, false, "添加车队", "TEAM ENTRY / 新车队", "EDIT TEAM / 编辑车队");
     if (teamLogoInput) teamLogoInput.value = "";
     if (teamError) teamError.textContent = "";
   }
@@ -2800,8 +2828,10 @@
     if (productIntro) productIntro.value = "";
     siteState.productDraftImage = "";
     siteState.productDraftImages = [];
+    siteState.productEditingId = "";
     setProductDraftImage("");
     setProductImagesPreview([]);
+    setFormEditMode(productForm, productCancelEdit, false, "添加产品", "PRODUCT ENTRY / 新产品", "EDIT PRODUCT / 编辑产品");
     if (productLogoInput) productLogoInput.value = "";
     if (productImagesInput) productImagesInput.value = "";
     if (productError) productError.textContent = "";
@@ -3035,6 +3065,49 @@
     return frag;
   }
 
+  function buildProductDetail(product) {
+    const frag = document.createDocumentFragment();
+    const header = detailElement("div", "detail-identity");
+    const logo = detailElement("div", "detail-logo");
+    if (product.logo) {
+      const image = document.createElement("img");
+      image.src = product.logo;
+      image.alt = product.name + " Logo";
+      logo.append(image);
+    } else {
+      logo.append(detailElement("span", "", product.name.slice(0, 2).toUpperCase()));
+    }
+    const copy = detailElement("div", "detail-identity-copy");
+    copy.append(detailElement("p", "detail-kicker", "PRODUCT / 产品"));
+    const title = detailElement("h2", "detail-title", product.name);
+    title.id = "detailTitle";
+    copy.append(title, detailElement("p", "detail-subtitle", product.nameZh));
+    if (product.price) {
+      const price = detailElement("strong", "detail-price", product.price);
+      copy.append(price);
+    }
+    header.append(logo, copy);
+    frag.append(header);
+    frag.append(detailElement("p", "detail-copy", product.intro));
+
+    if (product.images && product.images.length) {
+      frag.append(detailElement("h3", "detail-heading", "产品介绍图 / PRODUCT IMAGES"));
+      const gallery = detailElement("div", "detail-product-gallery");
+      product.images.forEach(function (src, index) {
+        const image = document.createElement("img");
+        image.src = src;
+        image.alt = product.name + " 产品介绍图 " + (index + 1);
+        image.loading = "lazy";
+        image.addEventListener("click", function () {
+          openPosterLightbox(src, image.alt, product.name, "产品介绍图 / PRODUCT IMAGE");
+        });
+        gallery.append(image);
+      });
+      frag.append(gallery);
+    }
+    return frag;
+  }
+
   function buildEventDetail(event) {
     const frag = document.createDocumentFragment();
     const header = detailElement("div", "detail-identity");
@@ -3130,11 +3203,12 @@
     if (!detailModal || !detailBody) return;
     const item = type === "news" ? siteState.news.find(function (entry) { return entry.id === id; })
       : type === "team" ? siteState.teams.find(function (entry) { return entry.id === id; })
-        : siteState.events.find(function (entry) { return entry.id === id; });
+        : type === "product" ? siteState.products.find(function (entry) { return entry.id === id; })
+          : siteState.events.find(function (entry) { return entry.id === id; });
     if (!item) return;
 
     detailBody.innerHTML = "";
-    detailBody.append(type === "news" ? buildNewsDetail(item) : type === "team" ? buildTeamDetail(item) : buildEventDetail(item));
+    detailBody.append(type === "news" ? buildNewsDetail(item) : type === "team" ? buildTeamDetail(item) : type === "product" ? buildProductDetail(item) : buildEventDetail(item));
     detailLastFocus = document.activeElement;
     detailModal.hidden = false;
     document.body.classList.add("detail-open");
@@ -3166,7 +3240,7 @@
     });
 
     const activate = function (event) {
-      const trigger = event.target.closest("[data-news-open], [data-team-open], [data-event-open]");
+      const trigger = event.target.closest("[data-news-open], [data-team-open], [data-product-open], [data-event-open]");
       if (!trigger) return;
       if (event.type === "keydown") {
         if (event.key !== "Enter" && event.key !== " ") return;
@@ -3176,10 +3250,11 @@
       }
       if (trigger.dataset.newsOpen) openDetail("news", trigger.dataset.newsOpen);
       else if (trigger.dataset.teamOpen) openDetail("team", trigger.dataset.teamOpen);
+      else if (trigger.dataset.productOpen) openDetail("product", trigger.dataset.productOpen);
       else openDetail("event", trigger.dataset.eventOpen);
     };
 
-    [newsGrid, teamGrid, eventGrid].forEach(function (grid) {
+    [newsGrid, teamGrid, productGrid, eventGrid].forEach(function (grid) {
       if (!grid) return;
       grid.addEventListener("click", activate);
       grid.addEventListener("keydown", activate);
@@ -3820,17 +3895,21 @@
         }
 
         siteState.sponsorBusy = true;
+        const editingId = siteState.sponsorEditingId;
         const item = {
-          id: createSiteId("sponsor"),
+          id: editingId || createSiteId("sponsor"),
           name: name.slice(0, 60),
           url: url.slice(0, 300),
           image: siteState.sponsorDraftImage
         };
+        const next = editingId
+          ? siteState.sponsors.map(function (entry) { return entry.id === editingId ? item : entry; })
+          : siteState.sponsors.concat(item);
 
         try {
-          const saved = await persistSponsors(siteState.sponsors.concat(item));
+          const saved = await persistSponsors(next);
           if (saved) {
-            showToast("赞助商已添加。");
+            showToast(editingId ? "赞助商已更新。" : "赞助商已添加。");
             resetSponsorForm();
           }
         } finally {
@@ -3841,9 +3920,24 @@
 
     if (sponsorAdminList) {
       sponsorAdminList.addEventListener("click", async function (event) {
+        const editButton = event.target.closest("[data-sponsor-edit]");
+        if (editButton) {
+          const sponsor = siteState.sponsors.find(function (entry) { return entry.id === editButton.dataset.sponsorEdit; });
+          if (!sponsor) return;
+          siteState.sponsorEditingId = sponsor.id;
+          if (sponsorName) sponsorName.value = sponsor.name;
+          if (sponsorUrl) sponsorUrl.value = sponsor.url;
+          siteState.sponsorDraftImage = sponsor.image;
+          setSponsorDraftImage(sponsor.image);
+          setFormEditMode(sponsorForm, sponsorCancelEdit, true, "添加赞助商", "SPONSOR ENTRY / 新赞助商", "EDIT SPONSOR / 编辑赞助商");
+          if (sponsorError) sponsorError.textContent = "";
+          sponsorForm?.scrollIntoView({ behavior: "smooth", block: "center" });
+          return;
+        }
         const button = event.target.closest("[data-sponsor-delete]");
         if (!button) return;
         if (!window.confirm("确认删除这个赞助商？")) return;
+        if (siteState.sponsorEditingId === button.dataset.sponsorDelete) resetSponsorForm();
         const next = siteState.sponsors.filter(function (item) {
           return item.id !== button.dataset.sponsorDelete;
         });
@@ -3851,6 +3945,7 @@
         if (saved) showToast("赞助商已删除。");
       });
     }
+    if (sponsorCancelEdit) sponsorCancelEdit.addEventListener("click", resetSponsorForm);
 
     if (teamLogoPick && teamLogoInput) {
       teamLogoPick.addEventListener("click", function () {
@@ -3907,19 +4002,23 @@
         }
 
         siteState.teamBusy = true;
+        const editingId = siteState.teamEditingId;
         const item = {
-          id: createSiteId("team"),
+          id: editingId || createSiteId("team"),
           name: name.slice(0, 80),
           nameZh: nameZh.slice(0, 40),
           intro: intro.slice(0, 600),
           qq: qq.slice(0, 40),
           logo: siteState.teamDraftImage
         };
+        const next = editingId
+          ? siteState.teams.map(function (entry) { return entry.id === editingId ? item : entry; })
+          : siteState.teams.concat(item);
 
         try {
-          const saved = await persistTeams(siteState.teams.concat(item));
+          const saved = await persistTeams(next);
           if (saved) {
-            showToast("车队已添加。");
+            showToast(editingId ? "车队已更新。" : "车队已添加。");
             resetTeamForm();
           }
         } finally {
@@ -3930,9 +4029,26 @@
 
     if (teamAdminList) {
       teamAdminList.addEventListener("click", async function (event) {
+        const editButton = event.target.closest("[data-team-edit]");
+        if (editButton) {
+          const team = siteState.teams.find(function (entry) { return entry.id === editButton.dataset.teamEdit; });
+          if (!team) return;
+          siteState.teamEditingId = team.id;
+          if (teamName) teamName.value = team.name;
+          if (teamNameZh) teamNameZh.value = team.nameZh;
+          if (teamIntro) teamIntro.value = team.intro;
+          if (teamQq) teamQq.value = team.qq;
+          siteState.teamDraftImage = team.logo;
+          setTeamDraftImage(team.logo);
+          setFormEditMode(teamForm, teamCancelEdit, true, "添加车队", "TEAM ENTRY / 新车队", "EDIT TEAM / 编辑车队");
+          if (teamError) teamError.textContent = "";
+          teamForm?.scrollIntoView({ behavior: "smooth", block: "center" });
+          return;
+        }
         const button = event.target.closest("[data-team-delete]");
         if (!button) return;
         if (!window.confirm("确认删除这支车队？")) return;
+        if (siteState.teamEditingId === button.dataset.teamDelete) resetTeamForm();
         const next = siteState.teams.filter(function (item) {
           return item.id !== button.dataset.teamDelete;
         });
@@ -3940,6 +4056,7 @@
         if (saved) showToast("车队已删除。");
       });
     }
+    if (teamCancelEdit) teamCancelEdit.addEventListener("click", resetTeamForm);
 
     if (productLogoPick && productLogoInput) {
       productLogoPick.addEventListener("click", function () {
@@ -4039,8 +4156,9 @@
         }
 
         siteState.productBusy = true;
+        const editingId = siteState.productEditingId;
         const item = {
-          id: createSiteId("product"),
+          id: editingId || createSiteId("product"),
           name: name.slice(0, 80),
           nameZh: nameZh.slice(0, 40),
           price: price.slice(0, 40),
@@ -4048,11 +4166,14 @@
           logo: siteState.productDraftImage,
           images: siteState.productDraftImages.slice()
         };
+        const next = editingId
+          ? siteState.products.map(function (entry) { return entry.id === editingId ? item : entry; })
+          : siteState.products.concat(item);
 
         try {
-          const saved = await persistProducts(siteState.products.concat(item));
+          const saved = await persistProducts(next);
           if (saved) {
-            showToast("产品已添加。");
+            showToast(editingId ? "产品已更新。" : "产品已添加。");
             resetProductForm();
           }
         } finally {
@@ -4063,9 +4184,28 @@
 
     if (productAdminList) {
       productAdminList.addEventListener("click", async function (event) {
+        const editButton = event.target.closest("[data-product-edit]");
+        if (editButton) {
+          const product = siteState.products.find(function (entry) { return entry.id === editButton.dataset.productEdit; });
+          if (!product) return;
+          siteState.productEditingId = product.id;
+          if (productName) productName.value = product.name;
+          if (productNameZh) productNameZh.value = product.nameZh;
+          if (productPrice) productPrice.value = product.price;
+          if (productIntro) productIntro.value = product.intro;
+          siteState.productDraftImage = product.logo;
+          siteState.productDraftImages = (product.images || []).slice();
+          setProductDraftImage(product.logo);
+          setProductImagesPreview(siteState.productDraftImages);
+          setFormEditMode(productForm, productCancelEdit, true, "添加产品", "PRODUCT ENTRY / 新产品", "EDIT PRODUCT / 编辑产品");
+          if (productError) productError.textContent = "";
+          productForm?.scrollIntoView({ behavior: "smooth", block: "center" });
+          return;
+        }
         const button = event.target.closest("[data-product-delete]");
         if (!button) return;
         if (!window.confirm("确认删除这个产品？")) return;
+        if (siteState.productEditingId === button.dataset.productDelete) resetProductForm();
         const next = siteState.products.filter(function (item) {
           return item.id !== button.dataset.productDelete;
         });
@@ -4073,6 +4213,7 @@
         if (saved) showToast("产品已删除。");
       });
     }
+    if (productCancelEdit) productCancelEdit.addEventListener("click", resetProductForm);
 
     if (newsTitle) newsTitle.addEventListener("input", function () { if (newsError) newsError.textContent = ""; });
     if (newsText) newsText.addEventListener("input", function () { if (newsError) newsError.textContent = ""; });
