@@ -1,0 +1,575 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#050506">
+  <meta name="description" content="FRLSports 官方网站。官方海报、新闻、赛车文化内容与合作伙伴展示。">
+  <meta property="og:title" content="FRLSports | 官方网站">
+  <meta property="og:description" content="赛道已就绪，内容即将上线。">
+  <meta property="og:type" content="website">
+  <title>FRLSports | 官方网站</title>
+  <link rel="icon" href="assets/images/favicon-32.png" sizes="32x32" type="image/png">
+  <link rel="icon" href="assets/images/favicon.png" sizes="512x512" type="image/png">
+  <link rel="icon" href="assets/images/favicon-192.png" sizes="192x192" type="image/png">
+  <link rel="icon" href="assets/images/favicon.ico" sizes="any">
+  <link rel="apple-touch-icon" href="assets/images/apple-touch-icon.png">
+  <link rel="preload" as="image" href="assets/images/frlsports-logo-1400.webp" type="image/webp">
+  <link rel="preload" as="image" href="assets/images/posters/poster-01.webp" type="image/webp">
+  <link rel="stylesheet" href="assets/css/main.css">
+</head>
+<body id="top">
+  <a class="skip-link" href="#main">跳转到主要内容</a>
+
+  <div class="page">
+    <header class="site-header" id="siteHeader">
+      <div class="header-inner">
+        <a class="brand" href="#top" aria-label="FRLSports 首页">
+          <picture>
+            <source srcset="assets/images/frlsports-logo-1400.webp" type="image/webp">
+            <img src="assets/images/frlsports-logo-1400.png" alt="FRLSports" width="220" height="51" fetchpriority="high">
+          </picture>
+        </a>
+        <span class="brand-divider" aria-hidden="true"></span>
+        <span class="brand-tag">OFFICIAL<br>SITE</span>
+
+        <nav class="primary-nav" aria-label="主导航">
+          <a class="nav-link is-active" href="index.html" aria-current="page">
+            <span>首页</span><small>HOME</small>
+          </a>
+          <a class="nav-link" href="events.html">
+            <span>赛事</span><small>EVENTS</small>
+          </a>
+          <a class="nav-link" href="news.html">
+            <span>新闻</span><small>NEWS</small>
+          </a>
+          <a class="nav-link" href="posters.html">
+            <span>海报</span><small>POSTERS</small>
+          </a>
+          <a class="nav-link" href="teams.html">
+            <span>车队</span><small>TEAMS</small>
+          </a>
+          <a class="nav-link" href="about.html">
+            <span>关于</span><small>ABOUT</small>
+          </a>
+        </nav>
+
+        <div class="header-right">
+          <button class="donate-btn" type="button" data-donate-open aria-haspopup="dialog">捐赠</button>
+          <span class="site-status"><i aria-hidden="true"></i> SITE ONLINE</span>
+          <button class="menu-toggle" id="menuToggle" type="button" aria-label="打开菜单"
+                  aria-controls="mobileMenu" aria-expanded="false">
+            <span></span><span></span>
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <main class="home" id="main" tabindex="-1">
+    <section class="poster-section" aria-labelledby="posterHeading">
+      <div class="poster-bg" aria-hidden="true">
+        <div class="poster-grid"></div>
+        <div class="poster-glow"></div>
+        <div class="poster-ghost">POSTER</div>
+        <div class="poster-scan"></div>
+      </div>
+
+      <div class="poster-topline">
+        <div class="poster-heading">
+          <p class="eyebrow"><span></span> FEATURED POSTERS / 官方海报</p>
+          <h2 class="sr-only" id="posterHeading">FRLSports 官方海报</h2>
+        </div>
+        <div class="poster-season"><span>SEASON</span><strong>2026</strong></div>
+      </div>
+
+      <div class="poster-stage" id="posterStage" tabindex="0" role="region"
+           aria-roledescription="carousel" aria-label="FRLSports 官方海报">
+        <button class="poster-arrow poster-arrow--prev" id="posterPrev" type="button" aria-label="上一张海报">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"
+               stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M19 12H5"></path><path d="m11 18-6-6 6-6"></path>
+          </svg>
+        </button>
+        <div class="poster-track" id="posterTrack"></div>
+        <button class="poster-arrow poster-arrow--next" id="posterNext" type="button" aria-label="下一张海报">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"
+               stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M5 12h14"></path><path d="m13 6 6 6-6 6"></path>
+          </svg>
+        </button>
+        <p class="sr-only" id="posterStatus" aria-live="polite">正在加载海报</p>
+      </div>
+
+      <div class="poster-bottomline">
+        <div class="poster-caption">
+          <span>FRLSPORTS / OFFICIAL SERIES</span>
+          <small>使用方向键、点击两侧海报或滑动切换</small>
+        </div>
+        <div class="poster-dots" id="posterDots" role="group" aria-label="选择海报"></div>
+        <div class="poster-counter">
+          <div class="poster-counter__numbers">
+            <span id="posterCurrent">01</span><small>/ <span id="posterTotal">04</span></small>
+          </div>
+          <button class="poster-autoplay" id="posterAutoplay" type="button" aria-label="暂停自动播放"></button>
+        </div>
+      </div>
+    </section>
+
+    <section class="nar-section" id="about" aria-labelledby="narTitle">
+      <div class="nar-bg" aria-hidden="true">
+        <div class="nar-grid"></div>
+        <div class="nar-glow"></div>
+        <div class="nar-ghost">NAR</div>
+        <div class="nar-scan"></div>
+      </div>
+      <div class="nar-inner">
+        <div class="nar-identity">
+          <p class="eyebrow"><span></span> FRLSPORTS [NAR]</p>
+          <h1 class="nar-name" id="narTitle">FRLSports <em>[NAR]</em></h1>
+          <div class="nar-acronym" aria-label="News And Racing">
+            <span><b>N</b>ews</span>
+            <span><b>A</b>nd</span>
+            <span><b>R</b>acing</span>
+          </div>
+          <div class="nar-meta"><span>NEWS AND RACING</span><span>EST. 2026</span></div>
+        </div>
+        <div class="nar-copy">
+          <p class="nar-lead">FRLSports是为赛车游戏比赛管理者及车手们提供平台及便利的地方。</p>
+          <div class="nar-owner">
+            <span>OWNER / 所有者</span>
+            <strong>牢吉爆炸了！！！</strong>
+          </div>
+          <p class="nar-signature">FRLSports — News And Racing</p>
+        </div>
+      </div>
+    </section>
+
+
+
+    <section class="wall-section" id="posters" aria-labelledby="wallTitle">
+      <div class="section-shell">
+        <div class="section-head">
+          <div>
+            <p class="eyebrow"><span></span> POSTER WALL / 其他海报</p>
+            <h2 id="wallTitle">其他海报</h2>
+          </div>
+          <p class="section-note">
+            任意比例 · 保留原始构图 · 自动排版<br>
+            <a href="posters.html">独立页面 ↗</a>
+          </p>
+        </div>
+        <div class="poster-wall" id="posterWall"></div>
+        <div class="wall-empty" id="wallEmpty">
+          <span>POSTER WALL / WAITING</span>
+          <p>开发者尚未上传其他海报。</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="sponsor-section" aria-label="赞助商">
+      <div class="sponsor-list" id="sponsorList"></div>
+    </section>
+  </main>
+
+    <div class="ticker" aria-hidden="true">
+      <div class="ticker-track">
+        <div class="ticker-group">
+          <span>FRLSPORTS</span><i></i><span>NEWS AND RACING</span><i></i>
+          <span>OFFICIAL WEBSITE</span><i></i><span>POSTER WALL</span><i></i>
+          <span>EST. 2026</span><i></i><span>FRLSPORTS [NAR]</span><i></i>
+        </div>
+        <div class="ticker-group">
+          <span>FRLSPORTS</span><i></i><span>NEWS AND RACING</span><i></i>
+          <span>OFFICIAL WEBSITE</span><i></i><span>POSTER WALL</span><i></i>
+          <span>EST. 2026</span><i></i><span>FRLSPORTS [NAR]</span><i></i>
+        </div>
+      </div>
+    </div>
+
+    <footer class="site-footer">
+      <span>© <span id="year">2026</span> FRLSPORTS. ALL RIGHTS RESERVED.</span>
+      <span class="footer-center">OFFICIAL WEBSITE / 官方网站</span>
+      <a class="back-top" href="#top">BACK TO TOP <span>↑</span></a>
+    </footer>
+
+  <div class="mobile-menu" id="mobileMenu" role="dialog" aria-modal="true" aria-label="站点导航" aria-hidden="true">
+    <div class="mobile-menu-inner">
+      <p class="mobile-kicker">MENU / 导航</p>
+      <nav aria-label="移动端导航">
+        <a class="mobile-link is-active" href="index.html" aria-current="page"><span>01</span>首页<small>HOME</small></a>
+        <a class="mobile-link" href="events.html"><span>02</span>赛事<small>EVENTS</small></a>
+        <a class="mobile-link" href="news.html"><span>03</span>新闻<small>NEWS</small></a>
+        <a class="mobile-link" href="posters.html"><span>04</span>海报<small>POSTERS</small></a>
+        <a class="mobile-link" href="teams.html"><span>05</span>车队<small>TEAMS</small></a>
+        <a class="mobile-link" href="about.html"><span>06</span>关于<small>ABOUT</small></a>
+      </nav>
+      <div class="mobile-meta">
+        <span>OFFICIAL WEBSITE</span>
+        <span>FRLSPORTS · 2026</span>
+      </div>
+    </div>
+  </div>
+  </div>
+
+
+
+  <section class="developer-page" id="developerPage" hidden aria-label="FRLSports 开发者模式">
+    <header class="dev-page-header">
+      <a class="dev-page-brand" href="#" data-dev-back aria-label="返回 FRLSports 官网">
+        <img src="assets/images/frlsports-logo-1400.webp" alt="FRLSports" width="200" height="46">
+      </a>
+      <div class="dev-page-mark">
+        <span>DEVELOPER MODE</span>
+        <strong>FRLSPORTS CMS</strong>
+      </div>
+      <div class="dev-page-head-right">
+        <span class="dev-page-status"><i aria-hidden="true"></i> STATIC FILE</span>
+        <button class="dev-write-btn" id="devWriteFile" type="button" hidden title="将当前内容写入 assets/js/site-data.js">写入网页文件</button>
+        <button class="dev-back-btn" type="button" data-dev-back>返回官网 <span>↗</span></button>
+      </div>
+    </header>
+
+    <main class="dev-page-main">
+      <section class="dev-access" id="devAccessView" aria-labelledby="devAccessTitle">
+        <div class="dev-access-visual">
+          <p class="dev-kicker">PRIVATE AREA / 2026</p>
+          <h1 class="dev-access-display">开发者<br><span>控制台</span></h1>
+          <p class="dev-access-copy">
+            管理首页轮播、新闻、其他海报、车队与赞助商。内容可写入 site-data.js，前端直接读取，无需后端 API 或数据库。
+          </p>
+          <div class="dev-access-stats">
+            <div><span>ACCESS</span><strong>RESTRICTED</strong></div>
+            <div><span>STORAGE</span><strong>STATIC FILE</strong></div>
+            <div><span>SECTION</span><strong>CONTENT</strong></div>
+          </div>
+          <div class="dev-access-watermark" aria-hidden="true">CMS</div>
+        </div>
+
+        <div class="dev-access-panel">
+          <form class="dev-access-form" id="devGateForm" novalidate>
+            <p class="dev-kicker">RESTRICTED ACCESS / 内容管理</p>
+            <h2 class="dev-access-title" id="devAccessTitle">进入开发者模式</h2>
+            <p class="dev-access-desc">输入访问密码，管理首页海报、新闻、其他海报、车队与赞助商内容。</p>
+            <label class="dev-label" for="devPassword">ACCESS CODE</label>
+            <input class="dev-input" id="devPassword" name="password" type="password"
+                   autocomplete="off" spellcheck="false" placeholder="输入访问密码">
+            <p class="dev-error" id="devError" role="alert"></p>
+            <div class="dev-access-actions">
+              <button class="dev-btn dev-btn--ghost" type="button" data-dev-back>返回官网</button>
+              <button class="dev-btn dev-btn--primary" type="submit">进入控制台</button>
+            </div>
+            <span class="dev-access-meta">FRLSPORTS CMS / STATIC FILE</span>
+          </form>
+        </div>
+      </section>
+
+      <section class="dev-console" id="devConsoleView" hidden aria-label="FRLSports 开发者控制台">
+        <aside class="dev-rail">
+          <div class="dev-rail-head"><span>WORKSPACE</span><strong>01</strong></div>
+          <nav class="dev-rail-nav" aria-label="开发者页面导航">
+            <button class="dev-rail-link is-active" type="button" data-dev-view="posters" aria-current="page">
+              <i aria-hidden="true"></i><div><strong>首页海报</strong><small>FEATURED POSTERS</small></div>
+            </button>
+            <button class="dev-rail-link" type="button" data-dev-view="news">
+              <i aria-hidden="true"></i><div><strong>新闻管理</strong><small>NEWSROOM</small></div>
+            </button>
+            <button class="dev-rail-link" type="button" data-dev-view="events">
+              <i aria-hidden="true"></i><div><strong>赛事导入</strong><small>EVENT ARCHIVE</small></div>
+            </button>
+            <button class="dev-rail-link" type="button" data-dev-view="gallery">
+              <i aria-hidden="true"></i><div><strong>其他海报</strong><small>POSTER WALL</small></div>
+            </button>
+            <button class="dev-rail-link" type="button" data-dev-view="teams">
+              <i aria-hidden="true"></i><div><strong>车队管理</strong><small>TEAMS</small></div>
+            </button>
+            <button class="dev-rail-link" type="button" data-dev-view="sponsors">
+              <i aria-hidden="true"></i><div><strong>赞助商</strong><small>SPONSORS</small></div>
+            </button>
+          </nav>
+          <div class="dev-rail-foot">
+            <span>STORAGE / STATUS</span>
+            <strong>STATIC / site-data.js</strong>
+            <p>修改会保存到当前浏览器；连接站点目录后，新增内容会自动写入 <code>assets/js/site-data.js</code>。线上站点仍需重新部署该文件。</p>
+          </div>
+        </aside>
+
+        <div class="dev-workspace">
+          <section class="dev-view" data-dev-view="posters">
+            <div class="dev-workspace-head">
+              <div>
+                <p class="dev-kicker">HOMEPAGE / FEATURED POSTERS</p>
+                <h1>首页海报</h1>
+                <p>管理首页顶部的横版 4:3 海报轮播。拖入多张图片可批量添加，或点击「添加海报」；上传图片会居中裁切并压缩为 1200 × 900。</p>
+              </div>
+              <div class="dev-workspace-actions">
+                <span class="dev-count" id="devCount">4 / 12 张海报</span>
+                <button class="dev-btn dev-btn--add" id="devAdd" type="button" title="点击选择，或直接拖入多张图片">＋ 添加海报</button>
+                <button class="dev-btn dev-btn--ghost" id="devReset" type="button">恢复默认</button>
+              </div>
+            </div>
+
+            <div class="dev-workspace-body">
+              <div class="dev-grid" id="devGrid"></div>
+            </div>
+
+            <div class="dev-workspace-foot">
+              <span>更改会写入 <code>assets/js/site-data.js</code>（需先连接站点目录）；图片以内嵌数据保存，不依赖后端 API。</span>
+              <span>STATIC FILE / LOCAL PUBLISH</span>
+            </div>
+          </section>
+
+          <section class="dev-view" data-dev-view="news" hidden>
+            <div class="dev-workspace-head">
+              <div>
+                <p class="dev-kicker">NEWSROOM / 新闻</p>
+                <h1>新闻管理</h1>
+                <p>发布带标题、正文、图片和署名的新闻。新内容会显示在官网“新闻”栏目。</p>
+              </div>
+              <div class="dev-workspace-actions">
+                <span class="dev-count" id="newsCount">0 条新闻</span>
+              </div>
+            </div>
+
+            <div class="dev-workspace-body">
+              <div class="dev-editor-layout">
+                <form class="dev-form" id="newsForm" novalidate>
+                  <p class="dev-kicker">NEW STORY / 新新闻</p>
+                  <label class="dev-field">
+                    <span>标题</span>
+                    <input id="newsTitle" type="text" maxlength="80" placeholder="输入新闻标题" autocomplete="off">
+                  </label>
+                  <label class="dev-field">
+                    <span>正文</span>
+                    <textarea id="newsText" rows="8" maxlength="1600" placeholder="输入新闻正文"></textarea>
+                  </label>
+                  <label class="dev-field">
+                    <span>署名</span>
+                    <input id="newsAuthor" type="text" maxlength="40" placeholder="例如：牢吉爆炸了！！！" autocomplete="off">
+                  </label>
+                  <div class="dev-field">
+                    <span>新闻图片（可选）</span>
+                    <div class="dev-image-picker">
+                      <input class="dev-file" id="newsImageInput" type="file" accept="image/png,image/jpeg,image/webp" hidden>
+                      <button class="dev-btn dev-btn--ghost" id="newsImagePick" type="button">选择图片</button>
+                      <button class="dev-btn dev-btn--ghost" id="newsImageClear" type="button" hidden>移除图片</button>
+                      <div class="dev-image-preview" id="newsImagePreview">
+                        <span>IMAGE PREVIEW / 16:9</span>
+                        <img alt="新闻图片预览" hidden>
+                      </div>
+                    </div>
+                  </div>
+                  <p class="dev-error" id="newsError" role="alert"></p>
+                  <div class="dev-form-actions">
+                    <button class="dev-btn dev-btn--primary" type="submit">发布新闻</button>
+                  </div>
+                </form>
+
+                <div class="dev-editor-list">
+                  <div class="dev-list-head"><span>已发布新闻</span><span>DELETE TO REMOVE</span></div>
+                  <div class="news-admin-list" id="newsAdminList"></div>
+                </div>
+              </div>
+            </div>
+
+            <div class="dev-workspace-foot">
+              <span>新闻图片会按 16:9 居中裁切并压缩，正文与署名会直接显示在官网新闻卡片中。</span>
+              <span>STATIC FILE / site-data.js</span>
+            </div>
+          </section>
+
+          <section class="dev-view" data-dev-view="events" hidden>
+            <div class="dev-workspace-head">
+              <div>
+                <p class="dev-kicker">EVENT ARCHIVE / 赛事</p>
+                <h1>赛事导入</h1>
+                <p>导入 FRLS Race Manager 导出的 <code>.frls-event.json</code> 存档。赛事会显示在官网“赛事”页面，点击卡片查看详情。</p>
+              </div>
+              <div class="dev-workspace-actions">
+                <span class="dev-count" id="eventCount">0 个赛事</span>
+                <input class="dev-file" id="eventArchiveInput" type="file" accept=".json,.frls-event.json,application/json" hidden>
+                <button class="dev-btn dev-btn--add" id="eventImportPick" type="button">＋ 导入赛事存档</button>
+              </div>
+            </div>
+
+            <div class="dev-workspace-body">
+              <div class="event-admin-list" id="eventAdminList"></div>
+            </div>
+
+            <div class="dev-workspace-foot">
+              <span>存档包含赛事资料、分站、车手、排名、积分和积分曲线数据；导入后写入静态内容文件。</span>
+              <span>STATIC FILE / site-data.js</span>
+            </div>
+          </section>
+
+          <section class="dev-view" data-dev-view="gallery" hidden>
+            <div class="dev-workspace-head">
+              <div>
+                <p class="dev-kicker">POSTER WALL / 其他海报</p>
+                <h1>其他海报</h1>
+                <p>上传任意比例的图片。官网“其他海报”区域会保留原始比例并自动排版。</p>
+              </div>
+              <div class="dev-workspace-actions">
+                <span class="dev-count" id="galleryCount">0 张海报</span>
+                <input class="dev-file" id="galleryFileInput" type="file" accept="image/png,image/jpeg,image/webp,image/gif" multiple hidden>
+                <button class="dev-btn dev-btn--add" id="galleryPick" type="button">＋ 上传海报</button>
+              </div>
+            </div>
+
+            <div class="dev-workspace-body">
+              <div class="dev-gallery-grid" id="galleryAdminGrid"></div>
+            </div>
+
+            <div class="dev-workspace-foot">
+              <span>图片不会裁切，只按最长边缩放保存；官网自动排版会保留每张海报的原始比例。</span>
+              <span>STATIC FILE / site-data.js</span>
+            </div>
+          </section>
+
+          <section class="dev-view" data-dev-view="teams" hidden>
+            <div class="dev-workspace-head">
+              <div>
+                <p class="dev-kicker">TEAMS / 车队</p>
+                <h1>车队管理</h1>
+                <p>添加车队 Logo、名称、中文名称、简介和 QQ 群。内容会显示在官网“车队”页面。</p>
+              </div>
+              <div class="dev-workspace-actions">
+                <span class="dev-count" id="teamCount">0 支车队</span>
+              </div>
+            </div>
+
+            <div class="dev-workspace-body">
+              <div class="dev-editor-layout">
+                <form class="dev-form" id="teamForm" novalidate>
+                  <p class="dev-kicker">TEAM ENTRY / 新车队</p>
+                  <label class="dev-field">
+                    <span>名称</span>
+                    <input id="teamName" type="text" maxlength="80" placeholder="例如：FRL Racing" autocomplete="off">
+                  </label>
+                  <label class="dev-field">
+                    <span>中文名称</span>
+                    <input id="teamNameZh" type="text" maxlength="40" placeholder="例如：FRL 赛车队" autocomplete="off">
+                  </label>
+                  <label class="dev-field">
+                    <span>简介</span>
+                    <textarea id="teamIntro" rows="4" maxlength="600" placeholder="输入车队简介"></textarea>
+                  </label>
+                  <label class="dev-field">
+                    <span>QQ 群（选填）</span>
+                    <input id="teamQq" type="text" maxlength="40" placeholder="例如：123456789" autocomplete="off">
+                  </label>
+                  <div class="dev-field">
+                    <span>Logo（必填）</span>
+                    <div class="dev-image-picker">
+                      <input class="dev-file" id="teamLogoInput" type="file" accept="image/png,image/jpeg,image/webp" hidden>
+                      <button class="dev-btn dev-btn--ghost" id="teamLogoPick" type="button">选择 Logo</button>
+                      <button class="dev-btn dev-btn--ghost" id="teamLogoClear" type="button" hidden>移除 Logo</button>
+                      <div class="dev-image-preview dev-image-preview--logo" id="teamLogoPreview">
+                        <span>TEAM LOGO PREVIEW</span>
+                        <img alt="车队 Logo 预览" hidden>
+                      </div>
+                    </div>
+                  </div>
+                  <p class="dev-error" id="teamError" role="alert"></p>
+                  <div class="dev-form-actions">
+                    <button class="dev-btn dev-btn--primary" type="submit">添加车队</button>
+                  </div>
+                </form>
+
+                <div class="dev-editor-list">
+                  <div class="dev-list-head"><span>已添加车队</span><span>DELETE TO REMOVE</span></div>
+                  <div class="team-admin-list" id="teamAdminList"></div>
+                </div>
+              </div>
+            </div>
+
+            <div class="dev-workspace-foot">
+              <span>Logo 会保留比例并压缩；QQ 群选填，填写后会显示在车队卡片中。</span>
+              <span>STATIC FILE / site-data.js</span>
+            </div>
+          </section>
+
+          <section class="dev-view" data-dev-view="sponsors" hidden>
+            <div class="dev-workspace-head">
+              <div>
+                <p class="dev-kicker">SPONSORS / 赞助商</p>
+                <h1>赞助商</h1>
+                <p>上传彩色 Logo（必填），可选链接。官网底栏只显示 Logo，不显示名称或感谢文字。</p>
+              </div>
+              <div class="dev-workspace-actions">
+                <span class="dev-count" id="sponsorCount">0 个赞助商</span>
+              </div>
+            </div>
+
+            <div class="dev-workspace-body">
+              <div class="dev-editor-layout">
+                <form class="dev-form" id="sponsorForm" novalidate>
+                  <p class="dev-kicker">SPONSOR ENTRY / 新赞助商</p>
+                  <label class="dev-field">
+                    <span>名称（后台备注）</span>
+                    <input id="sponsorName" type="text" maxlength="40" placeholder="输入赞助商名称" autocomplete="off">
+                  </label>
+                  <label class="dev-field">
+                    <span>链接（可选）</span>
+                    <input id="sponsorUrl" type="url" maxlength="300" placeholder="https://" autocomplete="off">
+                  </label>
+                  <div class="dev-field">
+                    <span>Logo（必填）</span>
+                    <div class="dev-image-picker">
+                      <input class="dev-file" id="sponsorImageInput" type="file" accept="image/png,image/jpeg,image/webp" hidden>
+                      <button class="dev-btn dev-btn--ghost" id="sponsorImagePick" type="button">选择 Logo</button>
+                      <button class="dev-btn dev-btn--ghost" id="sponsorImageClear" type="button" hidden>移除 Logo</button>
+                      <div class="dev-image-preview dev-image-preview--logo" id="sponsorImagePreview">
+                        <span>LOGO PREVIEW</span>
+                        <img alt="赞助商 Logo 预览" hidden>
+                      </div>
+                    </div>
+                  </div>
+                  <p class="dev-error" id="sponsorError" role="alert"></p>
+                  <div class="dev-form-actions">
+                    <button class="dev-btn dev-btn--primary" type="submit">添加赞助商</button>
+                  </div>
+                </form>
+
+                <div class="dev-editor-list">
+                  <div class="dev-list-head"><span>已添加赞助商</span><span>DISPLAY ORDER</span></div>
+                  <div class="sponsor-admin-list" id="sponsorAdminList"></div>
+                </div>
+              </div>
+            </div>
+
+            <div class="dev-workspace-foot">
+              <span>官网底栏只显示彩色 Logo，不显示名称或感谢文字；没有链接的 Logo 不会跳转。</span>
+              <span>STATIC FILE / site-data.js</span>
+            </div>
+          </section>
+        </div>
+      </section>
+
+      <div class="dev-dropzone" id="devDropzone" hidden aria-hidden="true">
+        <div class="dev-dropzone__inner">
+          <span class="dev-dropzone__icon">＋</span>
+          <p class="dev-kicker">BULK UPLOAD / 4:3</p>
+          <strong>松开以批量添加海报</strong>
+          <small>支持多张图片 · 自动居中裁切为 1200 × 900 · 最多 12 张</small>
+        </div>
+      </div>
+    </main>
+
+    <footer class="dev-page-footer">
+      <span>FRLSPORTS CMS / LOCAL PREVIEW</span>
+      <span>© 2026 FRLSPORTS</span>
+      <span>CONTENT MANAGEMENT / 01</span>
+    </footer>
+  </section>
+
+  <input class="dev-file" id="devFileInput" type="file" accept="image/png,image/jpeg,image/webp,image/gif"
+         multiple hidden>
+
+  <div class="toast" id="toast" role="status" aria-live="polite">
+    <span></span><p>该板块正在筹备中</p>
+  </div>
+
+  <script src="assets/js/site-data.js"></script>
+  <script src="assets/js/main.js" defer></script>
+</body>
+</html>

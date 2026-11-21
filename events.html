@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#050506">
+  <meta name="description" content="FRLSports 赛事中心，赛事、赛历与比赛管理内容。">
+  <title>赛事中心 | FRLSports</title>
+  <link rel="icon" href="assets/images/favicon-32.png" sizes="32x32" type="image/png">
+  <link rel="icon" href="assets/images/favicon.png" sizes="512x512" type="image/png">
+  <link rel="icon" href="assets/images/favicon-192.png" sizes="192x192" type="image/png">
+  <link rel="icon" href="assets/images/favicon.ico" sizes="any">
+  <link rel="apple-touch-icon" href="assets/images/apple-touch-icon.png">
+  <link rel="preload" as="image" href="assets/images/frlsports-logo-1400.webp" type="image/webp">
+  <link rel="stylesheet" href="assets/css/main.css">
+</head>
+<body id="top">
+  <a class="skip-link" href="#main">跳转到主要内容</a>
+  <div class="page">
+    <header class="site-header" id="siteHeader">
+      <div class="header-inner">
+        <a class="brand" href="index.html" aria-label="FRLSports 首页">
+          <picture>
+            <source srcset="assets/images/frlsports-logo-1400.webp" type="image/webp">
+            <img src="assets/images/frlsports-logo-1400.png" alt="FRLSports" width="220" height="51" fetchpriority="high">
+          </picture>
+        </a>
+        <span class="brand-divider" aria-hidden="true"></span>
+        <span class="brand-tag">OFFICIAL<br>SITE</span>
+
+        <nav class="primary-nav" aria-label="主导航">
+          <a class="nav-link" href="index.html">
+            <span>首页</span><small>HOME</small>
+          </a>
+          <a class="nav-link is-active" href="events.html" aria-current="page">
+            <span>赛事</span><small>EVENTS</small>
+          </a>
+          <a class="nav-link" href="news.html">
+            <span>新闻</span><small>NEWS</small>
+          </a>
+          <a class="nav-link" href="index.html#posters">
+            <span>海报</span><small>POSTERS</small>
+          </a>
+          <a class="nav-link" href="teams.html">
+            <span>车队</span><small>TEAMS</small>
+          </a>
+          <a class="nav-link" href="about.html">
+            <span>关于</span><small>ABOUT</small>
+          </a>
+        </nav>
+
+        <div class="header-right">
+          <button class="donate-btn" type="button" data-donate-open aria-haspopup="dialog">捐赠</button>
+          <span class="site-status"><i aria-hidden="true"></i> SITE ONLINE</span>
+          <button class="menu-toggle" id="menuToggle" type="button" aria-label="打开菜单"
+                  aria-controls="mobileMenu" aria-expanded="false">
+            <span></span><span></span>
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <main class="inner-page" id="main" tabindex="-1">
+      <section class="inner-hero" data-ghost="EVENTS">
+        <p class="eyebrow"><span></span> EVENTS / 赛事</p>
+        <h1>赛事中心</h1>
+        <p class="inner-hero-copy">FRLSports 赛事、赛历与比赛管理内容。</p>
+      </section>
+      <section class="inner-section">
+        <div class="section-shell">
+          <div class="event-grid" id="eventGrid"></div>
+          <div class="event-empty" id="eventEmpty">
+            <span>EVENTS / WAITING</span>
+            <p>开发者尚未导入赛事存档。</p>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <section class="sponsor-section" aria-label="赞助商">
+      <div class="sponsor-list" id="sponsorList"></div>
+    </section>
+    <div class="ticker" aria-hidden="true">
+      <div class="ticker-track">
+        <div class="ticker-group">
+          <span>FRLSPORTS</span><i></i><span>NEWS AND RACING</span><i></i>
+          <span>OFFICIAL WEBSITE</span><i></i><span>POSTER WALL</span><i></i>
+          <span>EST. 2026</span><i></i><span>FRLSPORTS [NAR]</span><i></i>
+        </div>
+        <div class="ticker-group">
+          <span>FRLSPORTS</span><i></i><span>NEWS AND RACING</span><i></i>
+          <span>OFFICIAL WEBSITE</span><i></i><span>POSTER WALL</span><i></i>
+          <span>EST. 2026</span><i></i><span>FRLSPORTS [NAR]</span><i></i>
+        </div>
+      </div>
+    </div>
+    <footer class="site-footer">
+      <span>© <span id="year">2026</span> FRLSPORTS. ALL RIGHTS RESERVED.</span>
+      <span class="footer-center">OFFICIAL WEBSITE / 官方网站</span>
+      <a class="back-top" href="#top">BACK TO TOP <span>↑</span></a>
+    </footer>
+  <div class="mobile-menu" id="mobileMenu" role="dialog" aria-modal="true" aria-label="站点导航" aria-hidden="true">
+    <div class="mobile-menu-inner">
+      <p class="mobile-kicker">MENU / 导航</p>
+      <nav aria-label="移动端导航">
+        <a class="mobile-link" href="index.html"><span>01</span>首页<small>HOME</small></a>
+        <a class="mobile-link is-active" href="events.html" aria-current="page"><span>02</span>赛事<small>EVENTS</small></a>
+        <a class="mobile-link" href="news.html"><span>03</span>新闻<small>NEWS</small></a>
+        <a class="mobile-link" href="index.html#posters"><span>04</span>海报<small>POSTERS</small></a>
+        <a class="mobile-link" href="teams.html"><span>05</span>车队<small>TEAMS</small></a>
+        <a class="mobile-link" href="about.html"><span>06</span>关于<small>ABOUT</small></a>
+      </nav>
+      <div class="mobile-meta">
+        <span>OFFICIAL WEBSITE</span>
+        <span>FRLSPORTS · 2026</span>
+      </div>
+    </div>
+  </div>
+  </div>
+
+
+  <div class="detail-backdrop" id="detailModal" hidden>
+    <div class="detail-dialog" role="dialog" aria-modal="true" aria-labelledby="detailTitle">
+      <button class="detail-close" id="detailClose" type="button" aria-label="关闭详情">关闭 <span>×</span></button>
+      <div class="detail-body" id="detailBody"></div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast" role="status" aria-live="polite">
+    <span></span><p>该板块正在筹备中</p>
+  </div>
+  <script src="assets/js/site-data.js"></script>
+  <script src="assets/js/main.js" defer></script>
+</body>
+</html>
