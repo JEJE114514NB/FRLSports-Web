@@ -266,6 +266,24 @@
   const teamAdminList = document.getElementById("teamAdminList");
   const teamGrid = document.getElementById("teamGrid");
   const teamEmpty = document.getElementById("teamEmpty");
+  const productGrid = document.getElementById("productGrid");
+  const productEmpty = document.getElementById("productEmpty");
+  const productForm = document.getElementById("productForm");
+  const productName = document.getElementById("productName");
+  const productNameZh = document.getElementById("productNameZh");
+  const productPrice = document.getElementById("productPrice");
+  const productIntro = document.getElementById("productIntro");
+  const productLogoInput = document.getElementById("productLogoInput");
+  const productLogoPick = document.getElementById("productLogoPick");
+  const productLogoClear = document.getElementById("productLogoClear");
+  const productLogoPreview = document.getElementById("productLogoPreview");
+  const productImagesInput = document.getElementById("productImagesInput");
+  const productImagesPick = document.getElementById("productImagesPick");
+  const productImagesClear = document.getElementById("productImagesClear");
+  const productImagesPreview = document.getElementById("productImagesPreview");
+  const productError = document.getElementById("productError");
+  const productCount = document.getElementById("productCount");
+  const productAdminList = document.getElementById("productAdminList");
   const eventGrid = document.getElementById("eventGrid");
   const eventEmpty = document.getElementById("eventEmpty");
   const eventImportPick = document.getElementById("eventImportPick");
@@ -283,16 +301,20 @@
     gallery: [],
     events: [],
     teams: [],
+    products: [],
     sponsors: [],
     ready: false,
     activeView: "posters",
     newsDraftImage: "",
     sponsorDraftImage: "",
     teamDraftImage: "",
+    productDraftImage: "",
+    productDraftImages: [],
     newsBusy: false,
     galleryBusy: false,
     sponsorBusy: false,
-    teamBusy: false
+    teamBusy: false,
+    productBusy: false
   };
 
   const posterState = {
@@ -630,6 +652,38 @@
         intro: intro.slice(0, 600),
         qq: typeof item.qq === "string" ? item.qq.trim().slice(0, 40) : "",
         logo: safeImageSource(item.logo)
+      });
+    });
+
+    return clean.slice(0, 32);
+  }
+
+  function sanitizeProducts(value) {
+    if (!Array.isArray(value)) return null;
+    const clean = [];
+    const seen = Object.create(null);
+
+    value.forEach(function (item, index) {
+      if (!item || typeof item !== "object") return;
+      const name = typeof item.name === "string" ? item.name.trim() : "";
+      const nameZh = typeof item.nameZh === "string" ? item.nameZh.trim() : "";
+      const intro = typeof item.intro === "string" ? item.intro.trim() : "";
+      if (!name || !nameZh || !intro) return;
+
+      let id = typeof item.id === "string" && item.id ? item.id : "product-" + index;
+      if (seen[id]) id = id + "-" + index;
+      seen[id] = true;
+
+      clean.push({
+        id: id,
+        name: name.slice(0, 80),
+        nameZh: nameZh.slice(0, 40),
+        price: typeof item.price === "string" ? item.price.trim().slice(0, 40) : "",
+        intro: intro.slice(0, 600),
+        logo: safeImageSource(item.logo),
+        images: Array.isArray(item.images)
+          ? item.images.map(safeImageSource).filter(Boolean).slice(0, 8)
+          : []
       });
     });
 
@@ -1530,6 +1584,15 @@
     return canvasImageData(canvas);
   }
 
+  async function processProductLogo(file) {
+    return processTeamLogo(file);
+  }
+
+  async function processProductIntroImage(file) {
+    const item = await processGalleryImage(file);
+    return item.src;
+  }
+
   async function processTeamLogo(file) {
     const image = await decodeImageFile(file);
     const maxWidth = 800;
@@ -2089,6 +2152,105 @@
     });
   }
 
+  function renderProductsPage() {
+    if (!productGrid) return;
+    productGrid.innerHTML = "";
+    const items = siteState.products;
+    const hasItems = items.length > 0;
+    productGrid.hidden = !hasItems;
+    if (productEmpty) productEmpty.hidden = hasItems;
+    if (!hasItems) return;
+
+    items.forEach(function (product, index) {
+      const card = document.createElement("article");
+      card.className = "product-card";
+      card.dataset.id = product.id;
+
+      const logo = document.createElement("div");
+      logo.className = "product-card__logo";
+      if (product.logo) {
+        const image = document.createElement("img");
+        image.src = product.logo;
+        image.alt = product.name + " Logo";
+        image.loading = index < 4 ? "eager" : "lazy";
+        logo.append(image);
+      } else {
+        logo.append(detailElement("span", "", product.name.slice(0, 2).toUpperCase()));
+      }
+
+      const body = detailElement("div", "product-card__body");
+      body.append(detailElement("span", "product-card__index", "PRODUCT / " + padPosterNumber(index + 1)));
+      const name = detailElement("h2", "", product.name);
+      body.append(name);
+      body.append(detailElement("p", "product-card__zh", product.nameZh));
+      if (product.price) body.append(detailElement("strong", "product-card__price", product.price));
+      body.append(detailElement("p", "product-card__intro", product.intro));
+
+      if (product.images && product.images.length) {
+        const gallery = detailElement("div", "product-card__gallery");
+        product.images.forEach(function (src, imageIndex) {
+          const image = document.createElement("img");
+          image.src = src;
+          image.alt = product.name + " 产品介绍图 " + (imageIndex + 1);
+          image.loading = "lazy";
+          image.addEventListener("click", function () {
+            openPosterLightbox(src, image.alt, product.name, "产品介绍图 / PRODUCT IMAGE");
+          });
+          gallery.append(image);
+        });
+        body.append(gallery);
+      }
+
+      card.append(logo, body);
+      productGrid.append(card);
+    });
+  }
+
+  function renderProductAdmin() {
+    if (!productAdminList) return;
+    if (productCount) productCount.textContent = siteState.products.length + " 个产品";
+    productAdminList.innerHTML = "";
+
+    if (!siteState.products.length) {
+      productAdminList.append(siteAdminEmpty("NO PRODUCTS YET", "添加产品后会显示在官网产品页面。"));
+      return;
+    }
+
+    siteState.products.forEach(function (product) {
+      const row = document.createElement("article");
+      row.className = "product-admin-row";
+      row.dataset.id = product.id;
+
+      const logo = detailElement("div", "product-admin-logo");
+      if (product.logo) {
+        const image = document.createElement("img");
+        image.src = product.logo;
+        image.alt = product.name + " Logo";
+        image.loading = "lazy";
+        logo.append(image);
+      } else {
+        logo.append(detailElement("span", "", "NO LOGO"));
+      }
+
+      const info = detailElement("div", "product-admin-info");
+      info.append(detailElement("strong", "", product.name));
+      info.append(detailElement("span", "", product.nameZh + (product.price ? " · " + product.price : "")));
+      info.append(detailElement("p", "", product.intro));
+      if (product.images && product.images.length) {
+        info.append(detailElement("small", "", product.images.length + " 张介绍图"));
+      }
+
+      const remove = document.createElement("button");
+      remove.className = "dev-action dev-action--delete";
+      remove.type = "button";
+      remove.dataset.productDelete = product.id;
+      remove.textContent = "删除";
+
+      row.append(logo, info, remove);
+      productAdminList.append(row);
+    });
+  }
+
   function renderEventAdmin() {
     if (!eventAdminList) return;
     if (eventCount) eventCount.textContent = siteState.events.length + " 个赛事";
@@ -2427,6 +2589,16 @@
     return saved;
   }
 
+  async function persistProducts(next) {
+    const saved = await writeSiteCollection("products", next);
+    siteState.products = next;
+    renderProductsPage();
+    renderProductAdmin();
+    if (!saved) showToast("产品已更新，但无法保存到当前浏览器。");
+    queueSiteFileWrite();
+    return saved;
+  }
+
   function buildSiteDataFile() {
     const payload = {
       version: 1,
@@ -2444,6 +2616,7 @@
       gallery: siteState.gallery,
       events: siteState.events,
       teams: siteState.teams,
+      products: siteState.products,
       sponsors: siteState.sponsors
     };
 
@@ -2542,6 +2715,37 @@
     }
   }
 
+  function setProductDraftImage(src) {
+    if (!productLogoPreview) return;
+    const image = productLogoPreview.querySelector("img");
+    if (!image) return;
+    if (src) {
+      image.src = src;
+      image.hidden = false;
+      productLogoPreview.classList.add("has-image");
+      if (productLogoClear) productLogoClear.hidden = false;
+    } else {
+      image.removeAttribute("src");
+      image.hidden = true;
+      productLogoPreview.classList.remove("has-image");
+      if (productLogoClear) productLogoClear.hidden = true;
+    }
+  }
+
+  function setProductImagesPreview(images) {
+    if (!productImagesPreview) return;
+    productImagesPreview.innerHTML = "";
+    (images || []).forEach(function (src) {
+      const image = document.createElement("img");
+      image.src = src;
+      image.alt = "产品介绍图";
+      image.loading = "lazy";
+      productImagesPreview.append(image);
+    });
+    productImagesPreview.classList.toggle("has-images", Boolean(images && images.length));
+    if (productImagesClear) productImagesClear.hidden = !(images && images.length);
+  }
+
   function setSponsorDraftImage(src) {
     if (!sponsorImagePreview) return;
     const image = sponsorImagePreview.querySelector("img");
@@ -2589,6 +2793,20 @@
     if (teamError) teamError.textContent = "";
   }
 
+  function resetProductForm() {
+    if (productName) productName.value = "";
+    if (productNameZh) productNameZh.value = "";
+    if (productPrice) productPrice.value = "";
+    if (productIntro) productIntro.value = "";
+    siteState.productDraftImage = "";
+    siteState.productDraftImages = [];
+    setProductDraftImage("");
+    setProductImagesPreview([]);
+    if (productLogoInput) productLogoInput.value = "";
+    if (productImagesInput) productImagesInput.value = "";
+    if (productError) productError.textContent = "";
+  }
+
   async function processGalleryUploads(files) {
     if (siteState.galleryBusy) return;
     const accepted = Array.prototype.slice.call(files).filter(isImageFile);
@@ -2621,7 +2839,7 @@
   }
 
   function switchDevView(name) {
-    const valid = ["posters", "news", "events", "gallery", "teams", "sponsors"].indexOf(name) >= 0 ? name : "posters";
+    const valid = ["posters", "news", "events", "gallery", "teams", "products", "sponsors"].indexOf(name) >= 0 ? name : "posters";
     siteState.activeView = valid;
 
     devViews.forEach(function (view) {
@@ -3119,6 +3337,273 @@
     });
   }
 
+  const I18N = {
+    "zh-Hans": {
+      nav: {
+        home: ["首页", "HOME"], events: ["赛事", "EVENTS"], news: ["新闻", "NEWS"],
+        posters: ["海报", "POSTERS"], teams: ["车队", "TEAMS"], products: ["产品", "PRODUCTS"], about: ["关于", "ABOUT"]
+      },
+      common: {
+        status: "SITE ONLINE", donate: "捐赠", skip: "跳转到主要内容", menu: "MENU / 导航",
+        footerCenter: "OFFICIAL WEBSITE / 官方网站", backTop: "BACK TO TOP"
+      },
+      pages: {
+        events: { eyebrow: "EVENTS / 赛事", title: "赛事中心", copy: "FRLSports 赛事、赛历与比赛管理内容。" },
+        news: { eyebrow: "NEWSROOM / 新闻", title: "最新新闻", copy: "来自 FRLSports 的官方公告、赛事动态与幕后故事。" },
+        posters: { eyebrow: "POSTER WALL / 其他海报", title: "其他海报", copy: "由开发者上传的各种比例海报，保留原始构图并自动排版。" },
+        teams: { eyebrow: "TEAMS / 车队", title: "车队档案", copy: "FRLSports 车队、车手与成员档案。" },
+        products: { eyebrow: "PRODUCTS / 产品", title: "产品", copy: "FRLSports 官方产品、装备与周边展示。" }
+      },
+      donation: { title: "赞助支持 FRLS", intro: "如果 FRLS Race Manager 对你的赛事管理有帮助，欢迎扫码支持后续开发。", scan: "扫码支持  /  SCAN TO SUPPORT", close: "关闭" },
+      empty: { events: "开发者尚未导入赛事存档。", news: "开发者尚未发布新闻。", wall: "开发者尚未上传其他海报。", teams: "开发者尚未添加车队。", products: "开发者尚未添加产品。" }
+    },
+    "zh-Hant": {
+      nav: {
+        home: ["首頁", "HOME"], events: ["賽事", "EVENTS"], news: ["新聞", "NEWS"],
+        posters: ["海報", "POSTERS"], teams: ["車隊", "TEAMS"], products: ["產品", "PRODUCTS"], about: ["關於", "ABOUT"]
+      },
+      common: {
+        status: "SITE ONLINE", donate: "捐贈", skip: "跳至主要內容", menu: "MENU / 導覽",
+        footerCenter: "OFFICIAL WEBSITE / 官方網站", backTop: "BACK TO TOP"
+      },
+      pages: {
+        events: { eyebrow: "EVENTS / 賽事", title: "賽事中心", copy: "FRLSports 賽事、賽曆與比賽管理內容。" },
+        news: { eyebrow: "NEWSROOM / 新聞", title: "最新新聞", copy: "來自 FRLSports 的官方公告、賽事動態與幕後故事。" },
+        posters: { eyebrow: "POSTER WALL / 其他海報", title: "其他海報", copy: "由開發者上傳的各種比例海報，保留原始構圖並自動排版。" },
+        teams: { eyebrow: "TEAMS / 車隊", title: "車隊檔案", copy: "FRLSports 車隊、車手與成員檔案。" },
+        products: { eyebrow: "PRODUCTS / 產品", title: "產品", copy: "FRLSports 官方產品、裝備與周邊展示。" }
+      },
+      donation: { title: "贊助支持 FRLS", intro: "如果 FRLS Race Manager 對你的賽事管理有幫助，歡迎掃碼支持後續開發。", scan: "掃碼支持  /  SCAN TO SUPPORT", close: "關閉" },
+      empty: { events: "開發者尚未匯入賽事存檔。", news: "開發者尚未發布新聞。", wall: "開發者尚未上傳其他海報。", teams: "開發者尚未新增車隊。", products: "開發者尚未新增產品。" }
+    },
+    "en": {
+      nav: {
+        home: ["Home", "HOME"], events: ["Events", "EVENTS"], news: ["News", "NEWS"],
+        posters: ["Posters", "POSTERS"], teams: ["Teams", "TEAMS"], products: ["Products", "PRODUCTS"], about: ["About", "ABOUT"]
+      },
+      common: {
+        status: "SITE ONLINE", donate: "Donate", skip: "Skip to main content", menu: "MENU / NAVIGATION",
+        footerCenter: "OFFICIAL WEBSITE", backTop: "BACK TO TOP"
+      },
+      pages: {
+        events: { eyebrow: "EVENTS", title: "Event Hub", copy: "FRLSports events, calendars and race management." },
+        news: { eyebrow: "NEWSROOM", title: "Latest News", copy: "Official announcements, race updates and stories from FRLSports." },
+        posters: { eyebrow: "POSTER WALL", title: "Poster Wall", copy: "Developer-uploaded posters in any ratio, preserved and auto-arranged." },
+        teams: { eyebrow: "TEAMS", title: "Team Files", copy: "FRLSports teams, drivers and member profiles." },
+        products: { eyebrow: "PRODUCTS", title: "Products", copy: "Official FRLSports products, gear and merchandise." }
+      },
+      donation: { title: "Support FRLS", intro: "If FRLS Race Manager helps your race management, scan to support future development.", scan: "SCAN TO SUPPORT", close: "Close" },
+      empty: { events: "The developer has not imported an event archive.", news: "The developer has not published any news.", wall: "The developer has not uploaded any posters.", teams: "The developer has not added any teams.", products: "The developer has not added any products." }
+    },
+    "ja": {
+      nav: {
+        home: ["ホーム", "HOME"], events: ["イベント", "EVENTS"], news: ["ニュース", "NEWS"],
+        posters: ["ポスター", "POSTERS"], teams: ["チーム", "TEAMS"], products: ["製品", "PRODUCTS"], about: ["について", "ABOUT"]
+      },
+      common: {
+        status: "SITE ONLINE", donate: "支援", skip: "メインコンテンツへ", menu: "MENU / ナビ",
+        footerCenter: "OFFICIAL WEBSITE", backTop: "BACK TO TOP"
+      },
+      pages: {
+        events: { eyebrow: "EVENTS / イベント", title: "イベント", copy: "FRLSports のイベント、カレンダー、レース管理。" },
+        news: { eyebrow: "NEWSROOM / ニュース", title: "最新ニュース", copy: "FRLSports からの公式発表、レース情報、ストーリー。" },
+        posters: { eyebrow: "POSTER WALL / ポスター", title: "ポスター", copy: "開発者がアップロードしたさまざまな比率のポスターを自動レイアウト。" },
+        teams: { eyebrow: "TEAMS / チーム", title: "チーム", copy: "FRLSports のチーム、ドライバー、メンバー。" },
+        products: { eyebrow: "PRODUCTS / 製品", title: "製品", copy: "FRLSports 公式製品、ギア、グッズ。" }
+      },
+      donation: { title: "FRLS を支援", intro: "FRLS Race Manager がレース管理の役に立つなら、今後の開発をスキャンで支援してください。", scan: "スキャンして支援 / SCAN TO SUPPORT", close: "閉じる" },
+      empty: { events: "開発者はまだイベントアーカイブを読み込んでいません。", news: "開発者はまだニュースを公開していません。", wall: "開発者はまだポスターをアップロードしていません。", teams: "開発者はまだチームを追加していません。", products: "開発者はまだ製品を追加していません。" }
+    }
+  };
+
+  I18N["zh-Hans"].titles = {
+    index: "FRLSports | 官方网站", events: "赛事中心 | FRLSports", news: "最新新闻 | FRLSports",
+    posters: "其他海报 | FRLSports", teams: "车队档案 | FRLSports", products: "产品 | FRLSports",
+    about: "关于 FRLSports [NAR] | FRLSports"
+  };
+  I18N["zh-Hans"].home = {
+    posterEyebrow: "FEATURED POSTERS / 官方海报",
+    posterHeading: "FRLSports 官方海报",
+    posterCaption: "使用方向键、点击两侧海报或滑动切换",
+    prev: "上一张海报", next: "下一张海报", dots: "选择海报",
+    wallEyebrow: "POSTER WALL / 其他海报", wallTitle: "其他海报",
+    wallNote: "任意比例 · 保留原始构图 · 自动排版", wallLink: "独立页面",
+    narLead: "FRLSports是为赛车游戏比赛管理者及车手们提供平台及便利的地方。",
+    ownerLabel: "OWNER / 所有者",
+    ownerName: "牢吉爆炸了！！！"
+  };
+  I18N["zh-Hant"].titles = {
+    index: "FRLSports | 官方網站", events: "賽事中心 | FRLSports", news: "最新新聞 | FRLSports",
+    posters: "其他海報 | FRLSports", teams: "車隊檔案 | FRLSports", products: "產品 | FRLSports",
+    about: "關於 FRLSports [NAR] | FRLSports"
+  };
+  I18N["zh-Hant"].home = {
+    posterEyebrow: "FEATURED POSTERS / 官方海報",
+    posterHeading: "FRLSports 官方海報",
+    posterCaption: "使用方向鍵、點擊兩側海報或滑動切換",
+    prev: "上一張海報", next: "下一張海報", dots: "選擇海報",
+    wallEyebrow: "POSTER WALL / 其他海報", wallTitle: "其他海報",
+    wallNote: "任意比例 · 保留原始構圖 · 自動排版", wallLink: "獨立頁面",
+    narLead: "FRLSports是為賽車遊戲比賽管理者及車手們提供平台及便利的地方。",
+    ownerLabel: "OWNER / 擁有者",
+    ownerName: "牢吉爆炸了！！！"
+  };
+  I18N.en.titles = {
+    index: "FRLSports | Official Website", events: "Event Hub | FRLSports", news: "Latest News | FRLSports",
+    posters: "Poster Wall | FRLSports", teams: "Team Files | FRLSports", products: "Products | FRLSports",
+    about: "About FRLSports [NAR] | FRLSports"
+  };
+  I18N.en.home = {
+    posterEyebrow: "FEATURED POSTERS",
+    posterHeading: "FRLSports Official Posters",
+    posterCaption: "Use arrow keys, side posters or swipe to switch",
+    prev: "Previous poster", next: "Next poster", dots: "Choose poster",
+    wallEyebrow: "POSTER WALL", wallTitle: "Poster Wall",
+    wallNote: "Any aspect ratio · Original framing · Auto layout", wallLink: "Open page",
+    narLead: "FRLSports is a platform and convenience for racing-game event organizers and drivers.",
+    ownerLabel: "OWNER",
+    ownerName: "Laoji Exploded!!!"
+  };
+  I18N.ja.titles = {
+    index: "FRLSports | 公式サイト", events: "イベント | FRLSports", news: "最新ニュース | FRLSports",
+    posters: "ポスター | FRLSports", teams: "チーム | FRLSports", products: "製品 | FRLSports",
+    about: "FRLSports [NAR] について | FRLSports"
+  };
+  I18N.ja.home = {
+    posterEyebrow: "FEATURED POSTERS / 公式ポスター",
+    posterHeading: "FRLSports 公式ポスター",
+    posterCaption: "矢印キー、左右のポスター、スワイプで切り替え",
+    prev: "前のポスター", next: "次のポスター", dots: "ポスターを選択",
+    wallEyebrow: "POSTER WALL / ポスター", wallTitle: "ポスター",
+    wallNote: "任意の比率 · 元の構図を保持 · 自動レイアウト", wallLink: "単独ページ",
+    narLead: "FRLSports は、レースゲームのイベント運営者とドライバーにプラットフォームと利便性を提供する場所です。",
+    ownerLabel: "OWNER / オーナー",
+    ownerName: "牢吉爆発！！！"
+  };
+
+  function navKey(href) {
+    const raw = String(href || "");
+    if (raw.includes("#posters")) return "posters";
+    const clean = raw.split("#")[0].split("/").pop() || "index.html";
+    if (!clean || clean === "index.html") return "home";
+    return clean.replace(/\.html$/, "");
+  }
+
+  function currentPageKey() {
+    const name = (window.location.pathname.split("/").pop() || "index.html").toLowerCase();
+    return (name || "index.html").replace(/\.html$/, "");
+  }
+
+  function applyLanguage(locale) {
+    const data = I18N[locale] || I18N["zh-Hans"];
+    const langMap = { "zh-Hans": "zh-CN", "zh-Hant": "zh-TW", en: "en", ja: "ja" };
+    document.documentElement.lang = langMap[locale] || "zh-CN";
+
+    document.querySelectorAll(".nav-link").forEach(function (link) {
+      const item = data.nav[navKey(link.getAttribute("href"))];
+      if (!item) return;
+      const span = link.querySelector("span");
+      const small = link.querySelector("small");
+      if (span) span.textContent = item[0];
+      if (small) small.textContent = item[1];
+    });
+
+    document.querySelectorAll(".mobile-link").forEach(function (link) {
+      const item = data.nav[navKey(link.getAttribute("href"))];
+      if (!item) return;
+      const number = link.querySelector("span") ? link.querySelector("span").textContent : "";
+      link.innerHTML = "<span>" + number + "</span>" + item[0] + "<small>" + item[1] + "</small>";
+    });
+
+    const status = document.querySelector(".site-status");
+    if (status) status.innerHTML = "<i aria-hidden=\"true\"></i> " + data.common.status;
+    document.querySelectorAll("[data-donate-open]").forEach(function (button) {
+      button.textContent = data.common.donate;
+    });
+    const skip = document.querySelector(".skip-link");
+    if (skip) skip.textContent = data.common.skip;
+    const kicker = document.querySelector(".mobile-kicker");
+    if (kicker) kicker.textContent = data.common.menu;
+    const footerCenter = document.querySelector(".footer-center");
+    if (footerCenter) footerCenter.textContent = data.common.footerCenter;
+    const backTop = document.querySelector(".back-top");
+    if (backTop) backTop.innerHTML = data.common.backTop + ' <span>↑</span>';
+
+    const page = data.pages[currentPageKey()];
+    if (page) {
+      const eyebrow = document.querySelector(".inner-hero .eyebrow");
+      const title = document.querySelector(".inner-hero h1");
+      const copy = document.querySelector(".inner-hero-copy");
+      if (eyebrow) eyebrow.innerHTML = "<span></span> " + page.eyebrow;
+      if (title) title.textContent = page.title;
+      if (copy) copy.textContent = page.copy;
+    }
+
+    const home = data.home;
+    const posterEyebrow = document.querySelector(".poster-heading .eyebrow");
+    if (posterEyebrow) posterEyebrow.innerHTML = "<span></span> " + home.posterEyebrow;
+    const posterHeading = document.getElementById("posterHeading");
+    if (posterHeading) posterHeading.textContent = home.posterHeading;
+    const posterStage = document.getElementById("posterStage");
+    if (posterStage) posterStage.setAttribute("aria-label", home.posterHeading);
+    const posterCaption = document.querySelector(".poster-caption small");
+    if (posterCaption) posterCaption.textContent = home.posterCaption;
+    const posterPrev = document.getElementById("posterPrev");
+    if (posterPrev) posterPrev.setAttribute("aria-label", home.prev);
+    const posterNext = document.getElementById("posterNext");
+    if (posterNext) posterNext.setAttribute("aria-label", home.next);
+    const posterDots = document.getElementById("posterDots");
+    if (posterDots) posterDots.setAttribute("aria-label", home.dots);
+    const wallEyebrow = document.querySelector(".wall-section .section-head .eyebrow");
+    if (wallEyebrow) wallEyebrow.innerHTML = "<span></span> " + home.wallEyebrow;
+    const wallTitle = document.getElementById("wallTitle");
+    if (wallTitle) wallTitle.textContent = home.wallTitle;
+    const sectionNote = document.querySelector(".wall-section .section-note");
+    if (sectionNote) sectionNote.innerHTML = home.wallNote + '<br><a href="posters.html">' + home.wallLink + " ↗</a>";
+    const narLead = document.querySelector(".nar-lead");
+    if (narLead) narLead.textContent = home.narLead;
+    const ownerLabel = document.querySelector(".nar-owner > span");
+    if (ownerLabel) ownerLabel.textContent = home.ownerLabel;
+    const ownerName = document.querySelector(".nar-owner strong");
+    if (ownerName) ownerName.textContent = home.ownerName;
+    if (data.titles && data.titles[currentPageKey()]) document.title = data.titles[currentPageKey()];
+
+    const emptyMap = { eventEmpty: "events", newsEmpty: "news", wallEmpty: "wall", teamEmpty: "teams", productEmpty: "products" };
+    Object.keys(emptyMap).forEach(function (id) {
+      const host = document.getElementById(id);
+      if (!host) return;
+      const paragraph = host.querySelector("p");
+      if (paragraph) paragraph.textContent = data.empty[emptyMap[id]];
+    });
+
+    const donateTitle = document.querySelector(".donate-title");
+    if (donateTitle) donateTitle.textContent = data.donation.title;
+    const donateIntro = document.querySelector(".donate-intro");
+    if (donateIntro) donateIntro.textContent = data.donation.intro;
+    const donateScan = document.querySelector(".donate-scan");
+    if (donateScan) donateScan.textContent = data.donation.scan;
+    document.querySelectorAll(".donate-done").forEach(function (button) { button.textContent = data.donation.close; });
+
+    const select = document.getElementById("languageSelect");
+    if (select) select.value = locale;
+  }
+
+  function initLanguage() {
+    const select = document.getElementById("languageSelect");
+    if (!select) return;
+    let saved = "zh-Hans";
+    try {
+      const stored = window.localStorage.getItem("frlsports-locale");
+      if (stored && I18N[stored]) saved = stored;
+    } catch (error) {}
+    applyLanguage(saved);
+    select.addEventListener("change", function () {
+      const locale = I18N[select.value] ? select.value : "zh-Hans";
+      applyLanguage(locale);
+      try { window.localStorage.setItem("frlsports-locale", locale); } catch (error) {}
+    });
+  }
+
   function initContentDev() {
     if (devWriteFile) {
       devWriteFile.addEventListener("click", function () {
@@ -3456,6 +3941,139 @@
       });
     }
 
+    if (productLogoPick && productLogoInput) {
+      productLogoPick.addEventListener("click", function () {
+        productLogoInput.click();
+      });
+    }
+
+    if (productLogoInput) {
+      productLogoInput.addEventListener("change", async function () {
+        const file = productLogoInput.files && productLogoInput.files[0];
+        productLogoInput.value = "";
+        if (!file) return;
+        if (!isImageFile(file)) {
+          if (productError) productError.textContent = "请选择图片文件。";
+          return;
+        }
+        try {
+          showToast("正在处理产品 Logo…");
+          const src = await processProductLogo(file);
+          siteState.productDraftImage = src;
+          setProductDraftImage(src);
+          if (productError) productError.textContent = "";
+        } catch (error) {
+          if (productError) productError.textContent = "图片处理失败，请换一张图片。";
+        }
+      });
+    }
+
+    if (productLogoClear) {
+      productLogoClear.addEventListener("click", function () {
+        siteState.productDraftImage = "";
+        setProductDraftImage("");
+        if (productLogoInput) productLogoInput.value = "";
+      });
+    }
+
+    if (productImagesPick && productImagesInput) {
+      productImagesPick.addEventListener("click", function () {
+        productImagesInput.click();
+      });
+    }
+
+    if (productImagesInput) {
+      productImagesInput.addEventListener("change", async function () {
+        const files = Array.prototype.slice.call(productImagesInput.files || []);
+        productImagesInput.value = "";
+        if (!files.length) return;
+        const remaining = 8 - siteState.productDraftImages.length;
+        if (remaining <= 0) {
+          showToast("产品介绍图最多 8 张。");
+          return;
+        }
+        const accepted = files.filter(isImageFile).slice(0, remaining);
+        if (!accepted.length) {
+          if (productError) productError.textContent = "请选择图片文件。";
+          return;
+        }
+        try {
+          showToast("正在处理产品介绍图…");
+          for (const file of accepted) {
+            const src = await processProductIntroImage(file);
+            siteState.productDraftImages.push(src);
+          }
+          setProductImagesPreview(siteState.productDraftImages);
+          if (productError) productError.textContent = "";
+        } catch (error) {
+          if (productError) productError.textContent = "图片处理失败，请重试。";
+        }
+      });
+    }
+
+    if (productImagesClear) {
+      productImagesClear.addEventListener("click", function () {
+        siteState.productDraftImages = [];
+        setProductImagesPreview([]);
+        if (productImagesInput) productImagesInput.value = "";
+      });
+    }
+
+    if (productForm) {
+      productForm.addEventListener("submit", async function (event) {
+        event.preventDefault();
+        if (siteState.productBusy) return;
+
+        const name = productName ? productName.value.trim() : "";
+        const nameZh = productNameZh ? productNameZh.value.trim() : "";
+        const price = productPrice ? productPrice.value.trim() : "";
+        const intro = productIntro ? productIntro.value.trim() : "";
+
+        if (!name || !nameZh || !intro) {
+          if (productError) productError.textContent = "名称、中文名称和简介不能为空。";
+          return;
+        }
+        if (!siteState.productDraftImage) {
+          if (productError) productError.textContent = "请上传产品 Logo。";
+          return;
+        }
+
+        siteState.productBusy = true;
+        const item = {
+          id: createSiteId("product"),
+          name: name.slice(0, 80),
+          nameZh: nameZh.slice(0, 40),
+          price: price.slice(0, 40),
+          intro: intro.slice(0, 600),
+          logo: siteState.productDraftImage,
+          images: siteState.productDraftImages.slice()
+        };
+
+        try {
+          const saved = await persistProducts(siteState.products.concat(item));
+          if (saved) {
+            showToast("产品已添加。");
+            resetProductForm();
+          }
+        } finally {
+          siteState.productBusy = false;
+        }
+      });
+    }
+
+    if (productAdminList) {
+      productAdminList.addEventListener("click", async function (event) {
+        const button = event.target.closest("[data-product-delete]");
+        if (!button) return;
+        if (!window.confirm("确认删除这个产品？")) return;
+        const next = siteState.products.filter(function (item) {
+          return item.id !== button.dataset.productDelete;
+        });
+        const saved = await persistProducts(next);
+        if (saved) showToast("产品已删除。");
+      });
+    }
+
     if (newsTitle) newsTitle.addEventListener("input", function () { if (newsError) newsError.textContent = ""; });
     if (newsText) newsText.addEventListener("input", function () { if (newsError) newsError.textContent = ""; });
     if (newsAuthor) newsAuthor.addEventListener("input", function () { if (newsError) newsError.textContent = ""; });
@@ -3464,6 +4082,10 @@
     if (teamName) teamName.addEventListener("input", function () { if (teamError) teamError.textContent = ""; });
     if (teamNameZh) teamNameZh.addEventListener("input", function () { if (teamError) teamError.textContent = ""; });
     if (teamIntro) teamIntro.addEventListener("input", function () { if (teamError) teamError.textContent = ""; });
+    if (productName) productName.addEventListener("input", function () { if (productError) productError.textContent = ""; });
+    if (productNameZh) productNameZh.addEventListener("input", function () { if (productError) productError.textContent = ""; });
+    if (productPrice) productPrice.addEventListener("input", function () { if (productError) productError.textContent = ""; });
+    if (productIntro) productIntro.addEventListener("input", function () { if (productError) productError.textContent = ""; });
   }
 
   async function initSiteContent() {
@@ -3473,6 +4095,7 @@
         readSiteCollection("gallery"),
         readSiteCollection("events"),
         readSiteCollection("teams"),
+        readSiteCollection("products"),
         readSiteCollection("sponsors")
       ]);
 
@@ -3480,12 +4103,14 @@
       siteState.gallery = sanitizeGallery(values[1]) || [];
       siteState.events = sanitizeEvents(values[2]) || [];
       siteState.teams = sanitizeTeams(values[3]) || [];
-      siteState.sponsors = sanitizeSponsors(values[4]) || [];
+      siteState.products = sanitizeProducts(values[4]) || [];
+      siteState.sponsors = sanitizeSponsors(values[5]) || [];
     } catch (error) {
       siteState.news = [];
       siteState.gallery = [];
       siteState.events = [];
       siteState.teams = [];
+      siteState.products = [];
       siteState.sponsors = [];
     }
 
@@ -3494,11 +4119,13 @@
     renderNewsSection();
     renderEventsPage();
     renderTeamsPage();
+    renderProductsPage();
     renderSponsorBar();
     renderNewsAdmin();
     renderEventAdmin();
     renderGalleryAdmin();
     renderTeamAdmin();
+    renderProductAdmin();
     renderSponsorAdmin();
   }
 
@@ -3509,6 +4136,7 @@
   initDetails();
   initPosterLightbox();
   initDonation();
+  initLanguage();
   initSiteContent();
 
   // Make sure the visual menu state is reset when coming back through browser cache.
