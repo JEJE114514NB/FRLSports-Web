@@ -1,0 +1,3518 @@
+(() => {
+  "use strict";
+
+  const body = document.body;
+  const header = document.getElementById("siteHeader");
+  const menuToggle = document.getElementById("menuToggle");
+  const mobileMenu = document.getElementById("mobileMenu");
+  const toast = document.getElementById("toast");
+  const toastText = toast ? toast.querySelector("p") : null;
+  const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
+  const desktopQuery = window.matchMedia("(min-width: 901px)");
+  let toastTimer = 0;
+  let lastFocused = null;
+
+  const year = document.getElementById("year");
+  if (year) year.textContent = String(new Date().getFullYear());
+
+  /* --------------------------------------------------------------- mobile nav */
+  const focusableSelector = "a[href], button:not([disabled])";
+  const menuLinks = mobileMenu ? [...mobileMenu.querySelectorAll(focusableSelector)] : [];
+  const activeMobileLink = mobileMenu ? mobileMenu.querySelector(".mobile-link.is-active") : null;
+
+  function setMenu(open, returnFocus = true) {
+    body.classList.toggle("nav-open", open);
+    if (menuToggle) {
+      menuToggle.setAttribute("aria-expanded", String(open));
+      menuToggle.setAttribute("aria-label", open ? "关闭菜单" : "打开菜单");
+    }
+    if (mobileMenu) mobileMenu.setAttribute("aria-hidden", String(!open));
+
+    if (open) {
+      lastFocused = document.activeElement;
+      window.setTimeout(() => {
+        if (menuLinks.length) (activeMobileLink || menuLinks[0]).focus({ preventScroll: true });
+      }, 180);
+    } else if (returnFocus && lastFocused instanceof HTMLElement) {
+      lastFocused.focus({ preventScroll: true });
+      lastFocused = null;
+    }
+  }
+
+  if (menuToggle) {
+    menuToggle.addEventListener("click", () => {
+      setMenu(!body.classList.contains("nav-open"));
+    });
+  }
+
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape" && body.classList.contains("nav-open")) {
+      setMenu(false);
+      return;
+    }
+
+    if (event.key !== "Tab" || !body.classList.contains("nav-open") || !mobileMenu) return;
+
+    const items = [...mobileMenu.querySelectorAll(focusableSelector)];
+    if (!items.length) return;
+    const first = items[0];
+    const last = items[items.length - 1];
+
+    if (event.shiftKey && document.activeElement === first) {
+      event.preventDefault();
+      last.focus();
+    } else if (!event.shiftKey && document.activeElement === last) {
+      event.preventDefault();
+      first.focus();
+    }
+  });
+
+  if (mobileMenu) {
+    mobileMenu.addEventListener("click", (event) => {
+      const link = event.target.closest("a");
+      if (!link) return;
+      if (!link.hasAttribute("data-coming")) setMenu(false, false);
+    });
+  }
+
+  // Keep the desktop and mobile layouts consistent after a resize.
+  const handleDesktopChange = (event) => {
+    if (event.matches && body.classList.contains("nav-open")) setMenu(false, false);
+  };
+  if (desktopQuery.addEventListener) desktopQuery.addEventListener("change", handleDesktopChange);
+  else desktopQuery.addListener(handleDesktopChange);
+
+  /* -------------------------------------------------------------------- toast */
+  function showToast(message) {
+    if (!toast || !toastText) return;
+    toastText.textContent = message;
+    toast.classList.add("is-visible");
+    window.clearTimeout(toastTimer);
+    toastTimer = window.setTimeout(() => toast.classList.remove("is-visible"), 2600);
+  }
+
+  document.querySelectorAll("[data-coming]").forEach((link) => {
+    link.addEventListener("click", (event) => {
+      event.preventDefault();
+      const section = link.getAttribute("data-coming") || "该板块";
+      if (body.classList.contains("nav-open")) setMenu(false, false);
+      showToast(section + "正在筹备中，敬请期待。");
+    });
+  });
+
+  const brand = document.querySelector(".brand");
+  if (brand) {
+    brand.addEventListener("click", () => {
+      if (body.classList.contains("nav-open")) setMenu(false, false);
+    });
+  }
+
+  /* ------------------------------------------------------------------- header */
+  const onScroll = () => {
+    if (header) header.classList.toggle("is-scrolled", window.scrollY > 8);
+  };
+  onScroll();
+  window.addEventListener("scroll", onScroll, { passive: true });
+
+  /* ---------------------------------------------------------------- parallax */
+  const hero = document.querySelector(".hero");
+  const finePointer = window.matchMedia("(hover: hover) and (pointer: fine)");
+  let frame = 0;
+
+  function resetParallax() {
+    if (!hero) return;
+    if (frame) {
+      window.cancelAnimationFrame(frame);
+      frame = 0;
+    }
+    hero.style.setProperty("--ghost-x", "0px");
+    hero.style.setProperty("--ghost-y", "0px");
+    hero.style.setProperty("--signal-x", "0px");
+    hero.style.setProperty("--signal-y", "0px");
+  }
+
+  if (hero && finePointer.matches && !reduceMotion.matches) {
+    hero.addEventListener("pointermove", (event) => {
+      if (frame) return;
+      frame = window.requestAnimationFrame(() => {
+        const rect = hero.getBoundingClientRect();
+        const x = event.clientX - rect.left - rect.width / 2;
+        const y = event.clientY - rect.top - rect.height / 2;
+        const nx = x / Math.max(rect.width, 1);
+        const ny = y / Math.max(rect.height, 1);
+
+        hero.style.setProperty("--ghost-x", (-nx * 24).toFixed(1) + "px");
+        hero.style.setProperty("--ghost-y", (-ny * 8).toFixed(1) + "px");
+        hero.style.setProperty("--signal-x", (nx * 18).toFixed(1) + "px");
+        hero.style.setProperty("--signal-y", (ny * 14).toFixed(1) + "px");
+        frame = 0;
+      });
+    }, { passive: true });
+
+    hero.addEventListener("pointerleave", resetParallax);
+  }
+
+  if (reduceMotion.addEventListener) {
+    reduceMotion.addEventListener("change", (event) => {
+      if (event.matches) resetParallax();
+    });
+  }
+
+
+  /* --------------------------------------------------------- poster carousel */
+  const DEFAULT_POSTERS = [
+    {
+      id: "default-01",
+      src: "assets/images/posters/poster-01.webp",
+      alt: "FRLSports 2026 新赛季官方海报",
+      name: "SEASON 2026",
+      kind: "default"
+    },
+    {
+      id: "default-02",
+      src: "assets/images/posters/poster-02.webp",
+      alt: "FRLSports Speed Is A Story 官方海报",
+      name: "SPEED IS A STORY",
+      kind: "default"
+    },
+    {
+      id: "default-03",
+      src: "assets/images/posters/poster-03.webp",
+      alt: "FRLSports Poster Series 2026 官方海报",
+      name: "POSTER SERIES",
+      kind: "default"
+    },
+    {
+      id: "default-04",
+      src: "assets/images/posters/poster-04.webp",
+      alt: "FRLSports News And Racing 官方海报",
+      name: "NEWS AND RACING",
+      kind: "default"
+    }
+  ];
+
+  const POSTER_MAX = 12;
+  const POSTER_AUTO_MS = 6200;
+  const POSTER_DB_NAME = "frlsports-content";
+  const POSTER_DB_STORE = "site";
+  const POSTER_LOCAL_KEY = "frlsports-posters-v1";
+
+  const posterSection = document.querySelector(".poster-section");
+  const posterStage = document.getElementById("posterStage");
+  const posterTrack = document.getElementById("posterTrack");
+  const posterDots = document.getElementById("posterDots");
+  const posterPrev = document.getElementById("posterPrev");
+  const posterNext = document.getElementById("posterNext");
+  const posterCurrent = document.getElementById("posterCurrent");
+  const posterTotal = document.getElementById("posterTotal");
+  const posterStatus = document.getElementById("posterStatus");
+  const posterAutoplay = document.getElementById("posterAutoplay");
+  const developerPage = document.getElementById("developerPage");
+  const devAccessView = document.getElementById("devAccessView");
+  const devConsoleView = document.getElementById("devConsoleView");
+  const devWriteFile = document.getElementById("devWriteFile");
+  let siteDirectoryHandle = null;
+  let siteWriteTimer = 0;
+  const devGateForm = document.getElementById("devGateForm");
+  const devPassword = document.getElementById("devPassword");
+  const devError = document.getElementById("devError");
+  const devGrid = document.getElementById("devGrid");
+  const devCount = document.getElementById("devCount");
+  const devReset = document.getElementById("devReset");
+  const devAdd = document.getElementById("devAdd");
+  const devDropzone = document.getElementById("devDropzone");
+  const devFileInput = document.getElementById("devFileInput");
+  const posterWall = document.getElementById("posterWall");
+  const wallEmpty = document.getElementById("wallEmpty");
+  const newsGrid = document.getElementById("newsGrid");
+  const newsEmpty = document.getElementById("newsEmpty");
+  const sponsorList = document.getElementById("sponsorList");
+  const newsForm = document.getElementById("newsForm");
+  const newsTitle = document.getElementById("newsTitle");
+  const newsText = document.getElementById("newsText");
+  const newsAuthor = document.getElementById("newsAuthor");
+  const newsImageInput = document.getElementById("newsImageInput");
+  const newsImagePick = document.getElementById("newsImagePick");
+  const newsImageClear = document.getElementById("newsImageClear");
+  const newsImagePreview = document.getElementById("newsImagePreview");
+  const newsError = document.getElementById("newsError");
+  const newsCount = document.getElementById("newsCount");
+  const newsAdminList = document.getElementById("newsAdminList");
+  const galleryPick = document.getElementById("galleryPick");
+  const galleryFileInput = document.getElementById("galleryFileInput");
+  const galleryAdminGrid = document.getElementById("galleryAdminGrid");
+  const galleryCount = document.getElementById("galleryCount");
+  const sponsorForm = document.getElementById("sponsorForm");
+  const sponsorName = document.getElementById("sponsorName");
+  const sponsorUrl = document.getElementById("sponsorUrl");
+  const sponsorImageInput = document.getElementById("sponsorImageInput");
+  const sponsorImagePick = document.getElementById("sponsorImagePick");
+  const sponsorImageClear = document.getElementById("sponsorImageClear");
+  const sponsorImagePreview = document.getElementById("sponsorImagePreview");
+  const sponsorError = document.getElementById("sponsorError");
+  const sponsorCount = document.getElementById("sponsorCount");
+  const sponsorAdminList = document.getElementById("sponsorAdminList");
+  const teamForm = document.getElementById("teamForm");
+  const teamName = document.getElementById("teamName");
+  const teamNameZh = document.getElementById("teamNameZh");
+  const teamIntro = document.getElementById("teamIntro");
+  const teamQq = document.getElementById("teamQq");
+  const teamLogoInput = document.getElementById("teamLogoInput");
+  const teamLogoPick = document.getElementById("teamLogoPick");
+  const teamLogoClear = document.getElementById("teamLogoClear");
+  const teamLogoPreview = document.getElementById("teamLogoPreview");
+  const teamError = document.getElementById("teamError");
+  const teamCount = document.getElementById("teamCount");
+  const teamAdminList = document.getElementById("teamAdminList");
+  const teamGrid = document.getElementById("teamGrid");
+  const teamEmpty = document.getElementById("teamEmpty");
+  const eventGrid = document.getElementById("eventGrid");
+  const eventEmpty = document.getElementById("eventEmpty");
+  const eventImportPick = document.getElementById("eventImportPick");
+  const eventArchiveInput = document.getElementById("eventArchiveInput");
+  const eventCount = document.getElementById("eventCount");
+  const eventAdminList = document.getElementById("eventAdminList");
+  const detailModal = document.getElementById("detailModal");
+  const detailBody = document.getElementById("detailBody");
+  const detailClose = document.getElementById("detailClose");
+  const devViews = Array.prototype.slice.call(document.querySelectorAll(".dev-view"));
+  const devRailLinks = Array.prototype.slice.call(document.querySelectorAll(".dev-rail-link[data-dev-view]"));
+
+  const siteState = {
+    news: [],
+    gallery: [],
+    events: [],
+    teams: [],
+    sponsors: [],
+    ready: false,
+    activeView: "posters",
+    newsDraftImage: "",
+    sponsorDraftImage: "",
+    teamDraftImage: "",
+    newsBusy: false,
+    galleryBusy: false,
+    sponsorBusy: false,
+    teamBusy: false
+  };
+
+  const posterState = {
+    posters: DEFAULT_POSTERS.map(function (poster) {
+      return Object.assign({}, poster);
+    }),
+    index: 0,
+    autoPlaying: !reduceMotion.matches,
+    hovering: false,
+    focused: false,
+    timer: 0,
+    replaceId: null,
+    suppressClick: false,
+    dbPromise: null,
+    storageReady: false,
+    devLastFocus: null,
+    devScrollY: 0,
+    devAuthorized: false,
+    resetArmed: false,
+    resetTimer: 0
+  };
+
+  function padPosterNumber(value) {
+    return String(value).padStart(2, "0");
+  }
+
+  function sanitizePosterList(value) {
+    if (!Array.isArray(value)) return null;
+
+    const seen = Object.create(null);
+    const clean = [];
+
+    value.forEach(function (item, index) {
+      if (!item || typeof item !== "object") return;
+      if (typeof item.src !== "string" || !/^(data:image\/|assets\/)/.test(item.src)) return;
+
+      let id = typeof item.id === "string" && item.id ? item.id : "poster-" + index;
+      if (seen[id]) id = id + "-" + index;
+      seen[id] = true;
+
+      clean.push({
+        id: id,
+        src: item.src,
+        alt: typeof item.alt === "string" && item.alt ? item.alt : "FRLSports 海报 " + (index + 1),
+        name: typeof item.name === "string" && item.name ? item.name : "海报 " + (index + 1),
+        kind: item.kind === "default" ? "default" : "custom"
+      });
+    });
+
+    return clean.length ? clean.slice(0, POSTER_MAX) : null;
+  }
+
+  function openPosterDB() {
+    if (posterState.dbPromise) return posterState.dbPromise;
+
+    posterState.dbPromise = new Promise(function (resolve, reject) {
+      if (!("indexedDB" in window)) {
+        reject(new Error("IndexedDB unavailable"));
+        return;
+      }
+
+      const request = indexedDB.open(POSTER_DB_NAME, 1);
+
+      request.onupgradeneeded = function () {
+        const db = request.result;
+        if (!db.objectStoreNames.contains(POSTER_DB_STORE)) {
+          db.createObjectStore(POSTER_DB_STORE, { keyPath: "key" });
+        }
+      };
+      request.onsuccess = function () {
+        resolve(request.result);
+      };
+      request.onerror = function () {
+        reject(request.error || new Error("IndexedDB open failed"));
+      };
+      request.onblocked = function () {
+        reject(new Error("IndexedDB blocked"));
+      };
+    });
+
+    return posterState.dbPromise;
+  }
+
+  function readLocalPosters() {
+    try {
+      const raw = window.localStorage.getItem(POSTER_LOCAL_KEY);
+      if (!raw) return null;
+      return sanitizePosterList(JSON.parse(raw));
+    } catch (error) {
+      return null;
+    }
+  }
+
+  function writeLocalPosters(posters) {
+    try {
+      window.localStorage.setItem(POSTER_LOCAL_KEY, JSON.stringify(posters));
+      return true;
+    } catch (error) {
+      return false;
+    }
+  }
+
+  async function readPosterStorage() {
+    let db = null;
+
+    try {
+      db = await openPosterDB();
+      const record = await new Promise(function (resolve, reject) {
+        const transaction = db.transaction(POSTER_DB_STORE, "readonly");
+        const request = transaction.objectStore(POSTER_DB_STORE).get("posters");
+        request.onsuccess = function () {
+          resolve(request.result || null);
+        };
+        request.onerror = function () {
+          reject(request.error || new Error("IndexedDB read failed"));
+        };
+      });
+
+      if (record && record.value) {
+        const stored = sanitizePosterList(record.value);
+        if (stored) return stored;
+      }
+    } catch (error) {
+      db = null;
+    }
+
+    const filePosters = window.FRL_SITE_DATA && Array.isArray(window.FRL_SITE_DATA.posters)
+      ? sanitizePosterList(window.FRL_SITE_DATA.posters)
+      : null;
+    if (filePosters) return filePosters;
+
+    return readLocalPosters();
+  }
+
+  async function writePosterStorage(posters) {
+    const clean = sanitizePosterList(posters);
+    if (!clean) return false;
+
+    let db = null;
+    try {
+      db = await openPosterDB();
+    } catch (error) {
+      return writeLocalPosters(clean);
+    }
+
+    try {
+      await new Promise(function (resolve, reject) {
+        const transaction = db.transaction(POSTER_DB_STORE, "readwrite");
+        transaction.objectStore(POSTER_DB_STORE).put({ key: "posters", value: clean });
+        transaction.oncomplete = function () {
+          resolve();
+        };
+        transaction.onerror = function () {
+          reject(transaction.error || new Error("IndexedDB write failed"));
+        };
+        transaction.onabort = function () {
+          reject(transaction.error || new Error("IndexedDB write aborted"));
+        };
+      });
+
+      try {
+        window.localStorage.removeItem(POSTER_LOCAL_KEY);
+      } catch (error) {
+        // The IndexedDB copy is authoritative.
+      }
+      return true;
+    } catch (error) {
+      return false;
+    }
+  }
+
+  async function clearPosterStorage() {
+    let cleared = true;
+
+    try {
+      const db = await openPosterDB();
+      await new Promise(function (resolve, reject) {
+        const transaction = db.transaction(POSTER_DB_STORE, "readwrite");
+        transaction.objectStore(POSTER_DB_STORE).delete("posters");
+        transaction.oncomplete = function () {
+          resolve();
+        };
+        transaction.onerror = function () {
+          reject(transaction.error || new Error("IndexedDB delete failed"));
+        };
+        transaction.onabort = function () {
+          reject(transaction.error || new Error("IndexedDB delete aborted"));
+        };
+      });
+    } catch (error) {
+      // A missing or unavailable IndexedDB store has nothing to clear.
+    }
+
+    try {
+      window.localStorage.removeItem(POSTER_LOCAL_KEY);
+    } catch (error) {
+      cleared = false;
+    }
+
+    return cleared;
+  }
+
+  function localSiteKey(key) {
+    return "frlsports-" + key + "-v1";
+  }
+
+  function createSiteId(prefix) {
+    return prefix + "-" + Date.now() + "-" + Math.random().toString(36).slice(2, 7);
+  }
+
+  function safeImageSource(value) {
+    return typeof value === "string" && /^(data:image\/|assets\/)/.test(value) ? value : "";
+  }
+
+  function sanitizeNews(value) {
+    if (!Array.isArray(value)) return null;
+
+    const clean = [];
+    const seen = Object.create(null);
+
+    value.forEach(function (item, index) {
+      if (!item || typeof item !== "object") return;
+      const title = typeof item.title === "string" ? item.title.trim() : "";
+      const text = typeof item.text === "string" ? item.text.trim() : "";
+      if (!title || !text) return;
+
+      let id = typeof item.id === "string" && item.id ? item.id : "news-" + index;
+      if (seen[id]) id = id + "-" + index;
+      seen[id] = true;
+
+      const date = typeof item.date === "string" && !Number.isNaN(Date.parse(item.date))
+        ? item.date
+        : new Date().toISOString();
+
+      clean.push({
+        id: id,
+        title: title.slice(0, 120),
+        text: text.slice(0, 2000),
+        author: typeof item.author === "string" && item.author.trim() ? item.author.trim().slice(0, 60) : "FRLSports",
+        image: safeImageSource(item.image),
+        date: date
+      });
+    });
+
+    return clean.slice(0, 24);
+  }
+
+  function sanitizeGallery(value) {
+    if (!Array.isArray(value)) return null;
+
+    const clean = [];
+    const seen = Object.create(null);
+
+    value.forEach(function (item, index) {
+      if (!item || typeof item !== "object") return;
+      const src = safeImageSource(item.src);
+      if (!src) return;
+      const width = Number(item.width);
+      const height = Number(item.height);
+      if (!Number.isFinite(width) || !Number.isFinite(height) || width <= 0 || height <= 0) return;
+
+      let id = typeof item.id === "string" && item.id ? item.id : "wall-" + index;
+      if (seen[id]) id = id + "-" + index;
+      seen[id] = true;
+
+      clean.push({
+        id: id,
+        src: src,
+        alt: typeof item.alt === "string" && item.alt ? item.alt : "FRLSports 其他海报 " + (index + 1),
+        width: Math.round(width),
+        height: Math.round(height)
+      });
+    });
+
+    return clean.slice(0, 36);
+  }
+
+  function sanitizeSponsors(value) {
+    if (!Array.isArray(value)) return null;
+
+    const clean = [];
+    const seen = Object.create(null);
+
+    value.forEach(function (item, index) {
+      if (!item || typeof item !== "object") return;
+      const name = typeof item.name === "string" ? item.name.trim() : "";
+      if (!name) return;
+
+      let id = typeof item.id === "string" && item.id ? item.id : "sponsor-" + index;
+      if (seen[id]) id = id + "-" + index;
+      seen[id] = true;
+
+      let url = typeof item.url === "string" ? item.url.trim() : "";
+      if (url) {
+        try {
+          const parsed = new URL(url);
+          if (parsed.protocol !== "http:" && parsed.protocol !== "https:") url = "";
+        } catch (error) {
+          url = "";
+        }
+      }
+
+      clean.push({
+        id: id,
+        name: name.slice(0, 60),
+        image: safeImageSource(item.image),
+        url: url.slice(0, 300)
+      });
+    });
+
+    return clean.slice(0, 12);
+  }
+
+  function sanitizeTeams(value) {
+    if (!Array.isArray(value)) return null;
+
+    const clean = [];
+    const seen = Object.create(null);
+
+    value.forEach(function (item, index) {
+      if (!item || typeof item !== "object") return;
+      const name = typeof item.name === "string" ? item.name.trim() : "";
+      const nameZh = typeof item.nameZh === "string" ? item.nameZh.trim() : "";
+      const intro = typeof item.intro === "string" ? item.intro.trim() : "";
+      if (!name || !nameZh || !intro) return;
+
+      let id = typeof item.id === "string" && item.id ? item.id : "team-" + index;
+      if (seen[id]) id = id + "-" + index;
+      seen[id] = true;
+
+      clean.push({
+        id: id,
+        name: name.slice(0, 80),
+        nameZh: nameZh.slice(0, 40),
+        intro: intro.slice(0, 600),
+        qq: typeof item.qq === "string" ? item.qq.trim().slice(0, 40) : "",
+        logo: safeImageSource(item.logo)
+      });
+    });
+
+    return clean.slice(0, 32);
+  }
+
+  const EVENT_CHART_COLORS = ["#ff4657", "#f5c451", "#58d6a9", "#57a7ff", "#c084fc", "#ff9f43", "#35d0d6", "#f472b6"];
+
+  function eventTitle(event) {
+    return event.cn_name || event.full_name || event.abbr || "未命名赛事";
+  }
+
+  function buildEventChartFallback(seasons, drivers) {
+    const labels = [];
+    const seriesMap = Object.create(null);
+    drivers.forEach(function (driver, index) {
+      seriesMap[driver.id] = {
+        driver_id: driver.id,
+        driver_name: driver.name,
+        car_number: driver.number,
+        group: driver.group,
+        color: driver.group_color || EVENT_CHART_COLORS[index % EVENT_CHART_COLORS.length],
+        values: []
+      };
+    });
+
+    const cumulative = Object.create(null);
+    Object.keys(seriesMap).forEach(function (id) { cumulative[id] = 0; });
+
+    seasons.forEach(function (season) {
+      (season.rounds || []).forEach(function (rnd, index) {
+        labels.push("R" + padPosterNumber(index + 1) + " · " + (rnd.name || "未命名分站"));
+        const pointsByDriver = Object.create(null);
+        (rnd.results || []).forEach(function (result) {
+          pointsByDriver[result.driver_id] = Number(result.points) || 0;
+        });
+        Object.keys(seriesMap).forEach(function (id) {
+          cumulative[id] = (cumulative[id] || 0) + (pointsByDriver[id] || 0);
+          seriesMap[id].values.push(Number(cumulative[id].toFixed(2)));
+        });
+      });
+    });
+
+    return { labels: labels, series: Object.keys(seriesMap).map(function (id) { return seriesMap[id]; }) };
+  }
+
+  function normalizeEventChart(raw, seasons, drivers) {
+    if (!raw || !Array.isArray(raw.labels) || !Array.isArray(raw.series)) {
+      return buildEventChartFallback(seasons, drivers);
+    }
+    const labels = raw.labels.map(function (label) { return String(label || ""); }).slice(0, 80);
+    const series = [];
+    raw.series.forEach(function (item, index) {
+      if (!item || !Array.isArray(item.values)) return;
+      series.push({
+        driver_id: String(item.driver_id || ""),
+        driver_name: String(item.driver_name || ""),
+        car_number: String(item.car_number || ""),
+        group: String(item.group || ""),
+        color: /^#[0-9a-f]{6}$/i.test(String(item.color || "")) ? item.color : EVENT_CHART_COLORS[index % EVENT_CHART_COLORS.length],
+        values: item.values.slice(0, labels.length).map(function (value) { return Number(value) || 0; })
+      });
+    });
+    return { labels: labels, series: series };
+  }
+
+  function normalizeEventArchive(archive) {
+    if (!archive || typeof archive !== "object") return null;
+    const rawEvent = archive.event && typeof archive.event === "object" ? archive.event : archive;
+    if (!rawEvent || typeof rawEvent !== "object") return null;
+
+    const fullName = String(rawEvent.full_name || rawEvent.fullName || "").trim();
+    const cnName = String(rawEvent.cn_name || rawEvent.cnName || "").trim();
+    const abbr = String(rawEvent.abbr || "").trim();
+    if (!fullName && !cnName && !abbr) return null;
+
+    const groups = Array.isArray(rawEvent.groups) ? rawEvent.groups : (Array.isArray(archive.groups) ? archive.groups : []);
+    const driversRaw = Array.isArray(archive.drivers) ? archive.drivers : [];
+    const drivers = driversRaw.map(function (driver, index) {
+      if (!driver || typeof driver !== "object") return null;
+      return {
+        id: String(driver.id || "driver-" + index),
+        name: String(driver.name || "未命名车手"),
+        number: String(driver.number || ""),
+        group_id: String(driver.group_id || ""),
+        group: String(driver.group || ""),
+        group_color: String(driver.group_color || "")
+      };
+    }).filter(Boolean);
+
+    const seasonsRaw = Array.isArray(archive.seasons) ? archive.seasons : [];
+    const seasons = seasonsRaw.map(function (season, seasonIndex) {
+      if (!season || typeof season !== "object") return null;
+      const rounds = [];
+      (Array.isArray(season.rounds) ? season.rounds : []).forEach(function (rnd, roundIndex) {
+        if (!rnd || typeof rnd !== "object") return;
+        const results = [];
+        (Array.isArray(rnd.results) ? rnd.results : []).forEach(function (result) {
+          if (!result || typeof result !== "object") return;
+          results.push({
+            position: Number(result.position) || results.length + 1,
+            driver_id: String(result.driver_id || ""),
+            driver_name: String(result.driver_name || ""),
+            car_number: String(result.car_number || ""),
+            group: String(result.group || ""),
+            points: Number(result.points) || 0,
+            gap: String(result.gap || "")
+          });
+        });
+        rounds.push({
+          index: Number(rnd.index) || roundIndex + 1,
+          id: String(rnd.id || "round-" + seasonIndex + "-" + roundIndex),
+          name: String(rnd.name || "未命名分站"),
+          date: String(rnd.date || ""),
+          results: results
+        });
+      });
+      return {
+        id: String(season.id || "season-" + seasonIndex),
+        name: String(season.name || "未命名赛季"),
+        year: String(season.year || ""),
+        rounds: rounds
+      };
+    }).filter(Boolean);
+
+    const standings = (Array.isArray(archive.standings) ? archive.standings : []).map(function (row, index) {
+      if (!row || typeof row !== "object") return null;
+      return {
+        rank: Number(row.rank) || index + 1,
+        driver_id: String(row.driver_id || ""),
+        driver_name: String(row.driver_name || ""),
+        car_number: String(row.car_number || ""),
+        group: String(row.group || ""),
+        points: Number(row.points) || 0,
+        starts: Number(row.starts) || 0,
+        wins: Number(row.wins) || 0,
+        podiums: Number(row.podiums) || 0
+      };
+    }).filter(Boolean);
+
+    const table = (Array.isArray(rawEvent.points_table) ? rawEvent.points_table : []).map(function (value) {
+      return Number(value) || 0;
+    }).slice(0, 20);
+    while (table.length < 20) table.push(0);
+
+    const id = String(rawEvent.id || createSiteId("event"));
+    const logo = safeImageSource(rawEvent.logo_data || rawEvent.logo || "");
+    return {
+      id: id,
+      abbr: abbr.slice(0, 20),
+      full_name: fullName.slice(0, 120),
+      cn_name: cnName.slice(0, 80),
+      race_type: String(rawEvent.race_type || "").slice(0, 40),
+      intro: String(rawEvent.intro || "").slice(0, 2000),
+      logo: logo,
+      points_enabled: Boolean(rawEvent.points_enabled),
+      points_table: table,
+      groups: groups.filter(function (group) { return group && typeof group === "object"; }).map(function (group, index) {
+        return {
+          id: String(group.id || "group-" + index),
+          name: String(group.name || ""),
+          color: /^#[0-9a-f]{6}$/i.test(String(group.color || "")) ? group.color : EVENT_CHART_COLORS[index % EVENT_CHART_COLORS.length]
+        };
+      }),
+      drivers: drivers,
+      seasons: seasons,
+      standings: standings,
+      points_chart: normalizeEventChart(archive.points_chart, seasons, drivers),
+      imported_at: String(archive.exported_at || new Date().toISOString())
+    };
+  }
+
+  function sanitizeEvents(value) {
+    if (!Array.isArray(value)) return null;
+    const clean = [];
+    const seen = Object.create(null);
+    value.forEach(function (item) {
+      const event = normalizeEventArchive(item);
+      if (!event) return;
+      let id = event.id;
+      if (seen[id]) id = id + "-" + clean.length;
+      seen[id] = true;
+      event.id = id;
+      clean.push(event);
+    });
+    return clean.slice(0, 12);
+  }
+
+  async function readSiteCollection(key) {
+    let db = null;
+
+    try {
+      db = await openPosterDB();
+      const record = await new Promise(function (resolve, reject) {
+        const transaction = db.transaction(POSTER_DB_STORE, "readonly");
+        const request = transaction.objectStore(POSTER_DB_STORE).get(key);
+        request.onsuccess = function () {
+          resolve(request.result || null);
+        };
+        request.onerror = function () {
+          reject(request.error || new Error("IndexedDB read failed"));
+        };
+      });
+
+      if (record && record.value) return record.value;
+    } catch (error) {
+      db = null;
+    }
+
+    try {
+      const raw = window.localStorage.getItem(localSiteKey(key));
+      if (raw) return JSON.parse(raw);
+    } catch (error) {
+      // Fall through to the static content file.
+    }
+
+    if (window.FRL_SITE_DATA && Object.prototype.hasOwnProperty.call(window.FRL_SITE_DATA, key)) {
+      const fileValue = window.FRL_SITE_DATA[key];
+      if (Array.isArray(fileValue)) return fileValue;
+    }
+
+    return null;
+  }
+
+  async function writeSiteCollection(key, value) {
+    let db = null;
+    try {
+      db = await openPosterDB();
+    } catch (error) {
+      try {
+        window.localStorage.setItem(localSiteKey(key), JSON.stringify(value));
+        return true;
+      } catch (fallbackError) {
+        return false;
+      }
+    }
+
+    try {
+      await new Promise(function (resolve, reject) {
+        const transaction = db.transaction(POSTER_DB_STORE, "readwrite");
+        transaction.objectStore(POSTER_DB_STORE).put({ key: key, value: value });
+        transaction.oncomplete = function () {
+          resolve();
+        };
+        transaction.onerror = function () {
+          reject(transaction.error || new Error("IndexedDB write failed"));
+        };
+        transaction.onabort = function () {
+          reject(transaction.error || new Error("IndexedDB write aborted"));
+        };
+      });
+
+      try {
+        window.localStorage.removeItem(localSiteKey(key));
+      } catch (error) {
+        // IndexedDB is authoritative when available.
+      }
+      return true;
+    } catch (error) {
+      return false;
+    }
+  }
+
+  function posterOffset(index) {
+    const total = posterState.posters.length;
+    let offset = index - posterState.index;
+    if (offset > total / 2) offset -= total;
+    if (offset < -total / 2) offset += total;
+    return offset;
+  }
+
+  function buildPosterSlides() {
+    if (!posterTrack || !posterDots) return;
+
+    posterTrack.innerHTML = "";
+    posterDots.innerHTML = "";
+
+    posterState.posters.forEach(function (poster, index) {
+      const card = document.createElement("figure");
+      card.className = "poster-card";
+      card.dataset.index = String(index);
+      card.setAttribute("role", "group");
+      card.setAttribute("aria-roledescription", "slide");
+      card.setAttribute("aria-label", "第 " + (index + 1) + " 张海报");
+
+      const image = document.createElement("img");
+      image.src = poster.src;
+      image.alt = poster.alt || "FRLSports 海报 " + (index + 1);
+      image.draggable = false;
+      image.decoding = "async";
+      if (index < 2) image.loading = "eager";
+      else image.loading = "lazy";
+
+      card.append(image);
+      posterTrack.append(card);
+
+      const dot = document.createElement("button");
+      dot.className = "poster-dot";
+      dot.type = "button";
+      dot.dataset.index = String(index);
+      dot.setAttribute("aria-label", "查看第 " + (index + 1) + " 张海报");
+      posterDots.append(dot);
+    });
+
+    if (posterTotal) posterTotal.textContent = padPosterNumber(posterState.posters.length);
+  }
+
+  function updatePosterAutoplayButton() {
+    if (!posterAutoplay) return;
+    const paused = !posterState.autoPlaying;
+    posterAutoplay.classList.toggle("is-paused", paused);
+    posterAutoplay.setAttribute("aria-label", paused ? "开始自动播放" : "暂停自动播放");
+  }
+
+  function shouldAutoPlayPosters() {
+    return posterState.autoPlaying &&
+      posterState.posters.length > 1 &&
+      !posterState.hovering &&
+      (!posterState.focused || document.activeElement === posterAutoplay) &&
+      !document.hidden &&
+      !body.classList.contains("dev-mode") &&
+      !body.classList.contains("nav-open");
+  }
+
+  function schedulePosterAuto() {
+    window.clearTimeout(posterState.timer);
+    if (!shouldAutoPlayPosters()) return;
+
+    posterState.timer = window.setTimeout(function () {
+      setPoster(posterState.index + 1, { user: false });
+    }, POSTER_AUTO_MS);
+  }
+
+  function updatePosterCarousel(options) {
+    if (!posterTrack) return;
+
+    const total = posterState.posters.length;
+    if (!total) return;
+
+    const announce = Boolean(options && options.announce);
+    posterState.index = ((posterState.index % total) + total) % total;
+
+    const cards = Array.prototype.slice.call(posterTrack.children);
+    cards.forEach(function (card, index) {
+      const offset = posterOffset(index);
+      let role = "hidden-prev";
+
+      if (offset === 0) role = "active";
+      else if (offset === -1) role = "prev";
+      else if (offset === 1) role = "next";
+      else if (offset < 0) role = "hidden-prev";
+      else role = "hidden-next";
+
+      card.dataset.role = role;
+      card.setAttribute("aria-hidden", role === "active" ? "false" : "true");
+    });
+
+    const dots = posterDots ? Array.prototype.slice.call(posterDots.children) : [];
+    dots.forEach(function (dot, index) {
+      if (index === posterState.index) dot.setAttribute("aria-current", "true");
+      else dot.removeAttribute("aria-current");
+    });
+
+    if (posterCurrent) posterCurrent.textContent = padPosterNumber(posterState.index + 1);
+    if (posterTotal) posterTotal.textContent = padPosterNumber(total);
+
+    if (announce && posterStatus) {
+      const current = posterState.posters[posterState.index];
+      posterStatus.textContent = "第 " + (posterState.index + 1) + " 张，共 " + total + " 张。" +
+        (current && current.alt ? current.alt : "");
+    }
+
+    updatePosterAutoplayButton();
+    schedulePosterAuto();
+  }
+
+  function refreshPosterCarousel(preferredId) {
+    if (!posterTrack || !posterState.posters.length) return;
+
+    let nextIndex = posterState.index;
+    if (preferredId) {
+      const found = posterState.posters.findIndex(function (poster) {
+        return poster.id === preferredId;
+      });
+      if (found >= 0) nextIndex = found;
+    }
+
+    posterState.index = nextIndex;
+    buildPosterSlides();
+    updatePosterCarousel({ announce: false });
+  }
+
+  function setPoster(index, options) {
+    const total = posterState.posters.length;
+    if (!total) return;
+
+    const next = ((index % total) + total) % total;
+    const user = !(options && options.user === false);
+
+    if (next === posterState.index) {
+      schedulePosterAuto();
+      return;
+    }
+
+    posterState.index = next;
+    updatePosterCarousel({ announce: user });
+  }
+
+  function initPosterCarousel() {
+    if (!posterStage || !posterTrack) return;
+
+    refreshPosterCarousel();
+
+    if (posterPrev) {
+      posterPrev.addEventListener("click", function () {
+        setPoster(posterState.index - 1, { user: true });
+      });
+    }
+
+    if (posterNext) {
+      posterNext.addEventListener("click", function () {
+        setPoster(posterState.index + 1, { user: true });
+      });
+    }
+
+    if (posterDots) {
+      posterDots.addEventListener("click", function (event) {
+        const dot = event.target.closest(".poster-dot");
+        if (!dot) return;
+        setPoster(Number(dot.dataset.index), { user: true });
+      });
+    }
+
+    posterTrack.addEventListener("click", function (event) {
+      if (posterState.suppressClick) {
+        posterState.suppressClick = false;
+        return;
+      }
+
+      const card = event.target.closest(".poster-card");
+      if (!card) return;
+      const index = Number(card.dataset.index);
+      if (card.dataset.role !== "active") {
+        setPoster(index, { user: true });
+        return;
+      }
+      const poster = posterState.posters[index] || posterState.posters[posterState.index];
+      if (poster) openPosterLightbox(poster.src, poster.alt, poster.name, "官方海报 / " + padPosterNumber(index + 1));
+    });
+
+    posterStage.addEventListener("keydown", function (event) {
+      if (event.key === "ArrowLeft") {
+        event.preventDefault();
+        setPoster(posterState.index - 1, { user: true });
+      } else if (event.key === "ArrowRight") {
+        event.preventDefault();
+        setPoster(posterState.index + 1, { user: true });
+      } else if (event.key === "Home") {
+        event.preventDefault();
+        setPoster(0, { user: true });
+      } else if (event.key === "End") {
+        event.preventDefault();
+        setPoster(posterState.posters.length - 1, { user: true });
+      }
+    });
+
+    if (posterAutoplay) {
+      posterAutoplay.addEventListener("click", function () {
+        posterState.autoPlaying = !posterState.autoPlaying;
+        updatePosterAutoplayButton();
+        schedulePosterAuto();
+      });
+    }
+
+    if (posterSection) {
+      posterSection.addEventListener("mouseenter", function () {
+        posterState.hovering = true;
+        schedulePosterAuto();
+      });
+
+      posterSection.addEventListener("mouseleave", function () {
+        posterState.hovering = false;
+        schedulePosterAuto();
+      });
+
+      posterSection.addEventListener("focusin", function () {
+        posterState.focused = true;
+        schedulePosterAuto();
+      });
+
+      posterSection.addEventListener("focusout", function (event) {
+        if (!posterSection.contains(event.relatedTarget)) {
+          posterState.focused = false;
+          schedulePosterAuto();
+        }
+      });
+    }
+
+    let dragStart = null;
+    posterStage.addEventListener("pointerdown", function (event) {
+      if (event.pointerType === "mouse" && event.button !== 0) return;
+      if (event.target.closest("button")) return;
+      dragStart = { x: event.clientX, y: event.clientY };
+      posterState.suppressClick = false;
+      window.clearTimeout(posterState.timer);
+    });
+
+    posterStage.addEventListener("pointermove", function (event) {
+      if (!dragStart) return;
+      const dx = Math.abs(event.clientX - dragStart.x);
+      const dy = Math.abs(event.clientY - dragStart.y);
+      if (dx > 8 && dx > dy) posterStage.classList.add("is-dragging");
+    });
+
+    window.addEventListener("pointerup", function (event) {
+      if (!dragStart) return;
+
+      const dx = event.clientX - dragStart.x;
+      const dy = event.clientY - dragStart.y;
+      dragStart = null;
+      posterStage.classList.remove("is-dragging");
+
+      if (Math.abs(dx) > 44 && Math.abs(dx) > Math.abs(dy)) {
+        setPoster(posterState.index + (dx < 0 ? 1 : -1), { user: true });
+        posterState.suppressClick = true;
+        window.setTimeout(function () {
+          posterState.suppressClick = false;
+        }, 80);
+      } else {
+        schedulePosterAuto();
+      }
+    });
+
+    posterStage.addEventListener("pointercancel", function () {
+      dragStart = null;
+      posterStage.classList.remove("is-dragging");
+      schedulePosterAuto();
+    });
+
+    document.addEventListener("visibilitychange", function () {
+      schedulePosterAuto();
+    });
+
+    if (reduceMotion.addEventListener) {
+      reduceMotion.addEventListener("change", function (event) {
+        if (event.matches) {
+          posterState.autoPlaying = false;
+          updatePosterAutoplayButton();
+        }
+        schedulePosterAuto();
+      });
+    }
+
+    readPosterStorage().then(function (stored) {
+      if (stored && stored.length) {
+        const activeId = posterState.posters[posterState.index] ? posterState.posters[posterState.index].id : "";
+        posterState.posters = stored;
+        refreshPosterCarousel(activeId);
+      }
+      posterState.storageReady = true;
+    }).catch(function () {
+      posterState.storageReady = true;
+    });
+  }
+
+  /* ------------------------------------------------------- developer mode */
+  function isTypingTarget(target) {
+    if (!(target instanceof Element)) return false;
+    return Boolean(target.closest("input, textarea, select, [contenteditable='true']"));
+  }
+
+  function restoreDevFocus() {
+    const target = posterState.devLastFocus;
+    posterState.devLastFocus = null;
+
+    if (target instanceof HTMLElement && document.contains(target) && target !== document.body) {
+      window.setTimeout(function () {
+        target.focus({ preventScroll: true });
+      }, 40);
+    } else if (posterStage) {
+      window.setTimeout(function () {
+        posterStage.focus({ preventScroll: true });
+      }, 40);
+    }
+  }
+
+  function disarmDevReset() {
+    posterState.resetArmed = false;
+    window.clearTimeout(posterState.resetTimer);
+    if (devReset) {
+      devReset.classList.remove("is-armed");
+      devReset.textContent = "恢复默认";
+    }
+  }
+
+  function showDevAccess() {
+    if (!devAccessView || !devConsoleView) return;
+    posterState.devAuthorized = false;
+    devAccessView.hidden = false;
+    devConsoleView.hidden = true;
+    if (devWriteFile) devWriteFile.hidden = true;
+    if (devDropzone) devDropzone.hidden = true;
+    devGateForm.classList.remove("is-error");
+    devError.textContent = "";
+    devPassword.value = "";
+
+    window.setTimeout(function () {
+      devPassword.focus({ preventScroll: true });
+    }, 70);
+  }
+
+  function showDevConsole() {
+    if (!devAccessView || !devConsoleView) return;
+    posterState.devAuthorized = true;
+    devAccessView.hidden = true;
+    devConsoleView.hidden = false;
+    if (devWriteFile) devWriteFile.hidden = false;
+    if (devDropzone) devDropzone.hidden = true;
+    disarmDevReset();
+    switchDevView("posters");
+    renderDevGrid();
+
+    window.setTimeout(function () {
+      const target = devAdd || devGrid.querySelector("button, input, a[href]");
+      if (target) target.focus({ preventScroll: true });
+    }, 70);
+  }
+
+  function openDeveloperPage() {
+    if (!developerPage || !developerPage.hidden) return;
+    if (!posterState.storageReady || !siteState.ready) {
+      showToast("内容数据加载中，请稍候。");
+      return;
+    }
+
+    if (body.classList.contains("nav-open")) setMenu(false, false);
+
+    posterState.devLastFocus = document.activeElement;
+    posterState.devScrollY = window.scrollY;
+    developerPage.hidden = false;
+    body.classList.add("dev-mode");
+    window.clearTimeout(posterState.timer);
+    showDevAccess();
+    window.scrollTo(0, 0);
+  }
+
+  function closeDeveloperPage() {
+    if (!developerPage || developerPage.hidden) return;
+
+    developerPage.hidden = true;
+    body.classList.remove("dev-mode");
+    posterState.devAuthorized = false;
+    if (devDropzone) devDropzone.hidden = true;
+    disarmDevReset();
+    window.scrollTo(0, posterState.devScrollY || 0);
+    schedulePosterAuto();
+    restoreDevFocus();
+  }
+
+  function makeDevAction(label, action, extraClass, ariaLabel) {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "dev-action" + (extraClass ? " " + extraClass : "");
+    button.dataset.action = action;
+    button.textContent = label;
+    if (ariaLabel) button.setAttribute("aria-label", ariaLabel);
+    return button;
+  }
+
+  function renderDevGrid() {
+    if (!devGrid) return;
+
+    devGrid.innerHTML = "";
+    if (devCount) devCount.textContent = posterState.posters.length + " / " + POSTER_MAX + " 张海报";
+
+    posterState.posters.forEach(function (poster, index) {
+      const card = document.createElement("article");
+      card.className = "dev-card";
+      card.dataset.id = poster.id;
+
+      const thumb = document.createElement("div");
+      thumb.className = "dev-thumb";
+
+      const image = document.createElement("img");
+      image.src = poster.src;
+      image.alt = poster.alt || poster.name;
+      image.loading = "lazy";
+      thumb.append(image);
+
+      const number = document.createElement("span");
+      number.className = "dev-num";
+      number.textContent = padPosterNumber(index + 1);
+      thumb.append(number);
+
+      const info = document.createElement("div");
+      info.className = "dev-card__info";
+      const title = document.createElement("strong");
+      title.textContent = poster.name || "海报 " + (index + 1);
+      const meta = document.createElement("span");
+      meta.textContent = (poster.kind === "default" ? "默认海报" : "自定义") + " · 4:3";
+      info.append(title, meta);
+
+      const actions = document.createElement("div");
+      actions.className = "dev-card__actions";
+
+      const replace = makeDevAction("替换", "replace", "", "替换这张海报");
+      const remove = makeDevAction("删除", "delete", "dev-action--delete", "删除这张海报");
+      const up = makeDevAction("↑", "up", "", "上移海报");
+      const down = makeDevAction("↓", "down", "", "下移海报");
+
+      up.disabled = index === 0;
+      down.disabled = index === posterState.posters.length - 1;
+      remove.disabled = posterState.posters.length <= 1;
+      actions.append(replace, remove, up, down);
+
+      card.append(thumb, info, actions);
+      devGrid.append(card);
+    });
+
+    const add = document.createElement("button");
+    add.type = "button";
+    add.className = "dev-add-card dev-add-card--wide";
+    add.dataset.action = "add";
+    add.disabled = posterState.posters.length >= POSTER_MAX;
+
+    const plus = document.createElement("span");
+    plus.className = "dev-plus";
+    plus.textContent = "+";
+    const addTitle = document.createElement("strong");
+    addTitle.textContent = add.disabled ? "已达上限" : "添加海报";
+    const addHint = document.createElement("small");
+    addHint.textContent = "JPG / PNG / WEBP · 4:3 · 支持拖入";
+
+    add.title = "点击选择，或直接拖入多张图片";
+    add.append(plus, addTitle, addHint);
+    devGrid.append(add);
+
+    if (devAdd) devAdd.disabled = posterState.posters.length >= POSTER_MAX;
+  }
+
+  function cleanPosterName(filename) {
+    const name = String(filename || "")
+      .replace(/\.[^.]+$/, "")
+      .replace(/[_-]+/g, " ")
+      .trim();
+    return name.slice(0, 36) || "自定义海报";
+  }
+
+  function processPosterImage(file, id) {
+    return new Promise(function (resolve, reject) {
+      const isImage = file && (file.type.startsWith("image/") || /\.(png|jpe?g|webp|gif)$/i.test(file.name));
+      if (!isImage) {
+        reject(new Error("Not an image"));
+        return;
+      }
+
+      const objectUrl = URL.createObjectURL(file);
+      const image = new Image();
+
+      image.onload = function () {
+        try {
+          const width = 1200;
+          const height = 900;
+          const canvas = document.createElement("canvas");
+          canvas.width = width;
+          canvas.height = height;
+
+          const context = canvas.getContext("2d");
+          if (!context) throw new Error("Canvas unavailable");
+
+          context.fillStyle = "#050506";
+          context.fillRect(0, 0, width, height);
+
+          const scale = Math.max(width / image.naturalWidth, height / image.naturalHeight);
+          const drawWidth = image.naturalWidth * scale;
+          const drawHeight = image.naturalHeight * scale;
+          context.drawImage(image, (width - drawWidth) / 2, (height - drawHeight) / 2, drawWidth, drawHeight);
+
+          let src = canvas.toDataURL("image/webp", 0.9);
+          if (!src.startsWith("data:image/webp")) {
+            src = canvas.toDataURL("image/jpeg", 0.9);
+          }
+
+          URL.revokeObjectURL(objectUrl);
+          const name = cleanPosterName(file.name);
+
+          resolve({
+            id: id || "poster-" + Date.now() + "-" + Math.random().toString(36).slice(2, 7),
+            src: src,
+            alt: name + " 官方海报",
+            name: name,
+            kind: "custom"
+          });
+        } catch (error) {
+          URL.revokeObjectURL(objectUrl);
+          reject(error);
+        }
+      };
+
+      image.onerror = function () {
+        URL.revokeObjectURL(objectUrl);
+        reject(new Error("Image decode failed"));
+      };
+
+      image.src = objectUrl;
+    });
+  }
+
+  function isImageFile(file) {
+    return Boolean(file && (file.type.startsWith("image/") || /\.(png|jpe?g|webp|gif)$/i.test(file.name)));
+  }
+
+  function decodeImageFile(file) {
+    return new Promise(function (resolve, reject) {
+      const objectUrl = URL.createObjectURL(file);
+      const image = new Image();
+      image.onload = function () {
+        URL.revokeObjectURL(objectUrl);
+        resolve(image);
+      };
+      image.onerror = function () {
+        URL.revokeObjectURL(objectUrl);
+        reject(new Error("Image decode failed"));
+      };
+      image.src = objectUrl;
+    });
+  }
+
+  function canvasImageData(canvas) {
+    let src = canvas.toDataURL("image/webp", 0.9);
+    if (!src.startsWith("data:image/webp")) {
+      src = canvas.toDataURL("image/png");
+    }
+    return src;
+  }
+
+  async function processNewsImage(file) {
+    const image = await decodeImageFile(file);
+    const width = 1280;
+    const height = 720;
+    const canvas = document.createElement("canvas");
+    canvas.width = width;
+    canvas.height = height;
+    const context = canvas.getContext("2d");
+    if (!context) throw new Error("Canvas unavailable");
+
+    context.fillStyle = "#050506";
+    context.fillRect(0, 0, width, height);
+
+    const scale = Math.max(width / image.naturalWidth, height / image.naturalHeight);
+    const drawWidth = image.naturalWidth * scale;
+    const drawHeight = image.naturalHeight * scale;
+    context.drawImage(image, (width - drawWidth) / 2, (height - drawHeight) / 2, drawWidth, drawHeight);
+
+    return canvasImageData(canvas);
+  }
+
+  async function processGalleryImage(file) {
+    const image = await decodeImageFile(file);
+    const maxWidth = 1600;
+    const maxHeight = 2000;
+    const scale = Math.min(1, maxWidth / image.naturalWidth, maxHeight / image.naturalHeight);
+    const width = Math.max(1, Math.round(image.naturalWidth * scale));
+    const height = Math.max(1, Math.round(image.naturalHeight * scale));
+
+    const canvas = document.createElement("canvas");
+    canvas.width = width;
+    canvas.height = height;
+    const context = canvas.getContext("2d");
+    if (!context) throw new Error("Canvas unavailable");
+    context.drawImage(image, 0, 0, width, height);
+
+    const name = cleanPosterName(file.name);
+    return {
+      id: createSiteId("wall"),
+      src: canvasImageData(canvas),
+      alt: name + " 其他海报",
+      width: width,
+      height: height
+    };
+  }
+
+  async function processSponsorLogo(file) {
+    const image = await decodeImageFile(file);
+    const maxWidth = 600;
+    const maxHeight = 240;
+    const scale = Math.min(1, maxWidth / image.naturalWidth, maxHeight / image.naturalHeight);
+    const width = Math.max(1, Math.round(image.naturalWidth * scale));
+    const height = Math.max(1, Math.round(image.naturalHeight * scale));
+
+    const canvas = document.createElement("canvas");
+    canvas.width = width;
+    canvas.height = height;
+    const context = canvas.getContext("2d");
+    if (!context) throw new Error("Canvas unavailable");
+    context.drawImage(image, 0, 0, width, height);
+
+    return canvasImageData(canvas);
+  }
+
+  async function processTeamLogo(file) {
+    const image = await decodeImageFile(file);
+    const maxWidth = 800;
+    const maxHeight = 800;
+    const scale = Math.min(1, maxWidth / image.naturalWidth, maxHeight / image.naturalHeight);
+    const width = Math.max(1, Math.round(image.naturalWidth * scale));
+    const height = Math.max(1, Math.round(image.naturalHeight * scale));
+
+    const canvas = document.createElement("canvas");
+    canvas.width = width;
+    canvas.height = height;
+    const context = canvas.getContext("2d");
+    if (!context) throw new Error("Canvas unavailable");
+    context.drawImage(image, 0, 0, width, height);
+
+    return canvasImageData(canvas);
+  }
+
+  async function commitPosters(nextPosters, focusId) {
+    const saved = await writePosterStorage(nextPosters);
+    posterState.posters = nextPosters;
+    refreshPosterCarousel(focusId);
+    renderDevGrid();
+    if (!saved) showToast("海报已更新，但无法保存到当前浏览器。");
+    queueSiteFileWrite();
+  }
+
+  async function handlePosterFiles(files, replaceId) {
+    const list = Array.prototype.slice.call(files).filter(function (file) {
+      return file && (file.type.startsWith("image/") || /\.(png|jpe?g|webp|gif)$/i.test(file.name));
+    });
+
+    if (!list.length) {
+      showToast("请选择图片文件。");
+      return;
+    }
+
+    if (replaceId) {
+      const index = posterState.posters.findIndex(function (poster) {
+        return poster.id === replaceId;
+      });
+      if (index < 0) return;
+
+      showToast("正在处理海报…");
+      try {
+        const processed = await processPosterImage(list[0], replaceId);
+        const next = posterState.posters.slice();
+        next[index] = processed;
+        await commitPosters(next, processed.id);
+        showToast("海报已替换。");
+      } catch (error) {
+        showToast("图片处理失败，请换一张图片重试。");
+      }
+      return;
+    }
+
+    const remaining = POSTER_MAX - posterState.posters.length;
+    if (remaining <= 0) {
+      showToast("最多只能保留 " + POSTER_MAX + " 张海报。");
+      return;
+    }
+
+    const accepted = list.slice(0, remaining);
+    showToast("正在处理 " + accepted.length + " 张海报…");
+
+    try {
+      const created = [];
+      for (const file of accepted) {
+        created.push(await processPosterImage(file));
+      }
+
+      const next = posterState.posters.concat(created);
+      await commitPosters(next, created[0].id);
+      showToast(created.length + " 张海报已添加" + (list.length > accepted.length ? "，已达上限。" : "。"));
+    } catch (error) {
+      showToast("图片处理失败，请重试。");
+    }
+  }
+
+  async function deletePoster(id) {
+    if (posterState.posters.length <= 1) {
+      showToast("至少需要保留一张海报。");
+      return;
+    }
+
+    const index = posterState.posters.findIndex(function (poster) {
+      return poster.id === id;
+    });
+    if (index < 0) return;
+
+    const currentId = posterState.posters[posterState.index] ? posterState.posters[posterState.index].id : "";
+    const next = posterState.posters.slice();
+    next.splice(index, 1);
+    const nextFocus = currentId === id ? next[Math.min(index, next.length - 1)].id : currentId;
+    await commitPosters(next, nextFocus);
+    showToast("海报已删除。");
+  }
+
+  async function movePoster(id, direction) {
+    const index = posterState.posters.findIndex(function (poster) {
+      return poster.id === id;
+    });
+    const target = index + direction;
+    if (index < 0 || target < 0 || target >= posterState.posters.length) return;
+
+    const currentId = posterState.posters[posterState.index] ? posterState.posters[posterState.index].id : "";
+    const next = posterState.posters.slice();
+    const moved = next.splice(index, 1)[0];
+    next.splice(target, 0, moved);
+    await commitPosters(next, currentId);
+    showToast("海报顺序已更新。");
+  }
+
+  async function resetPosters() {
+    const cleared = await clearPosterStorage();
+    posterState.posters = DEFAULT_POSTERS.map(function (poster) {
+      return Object.assign({}, poster);
+    });
+    refreshPosterCarousel(DEFAULT_POSTERS[0].id);
+    renderDevGrid();
+    disarmDevReset();
+    showToast(cleared ? "已恢复默认海报。" : "已恢复默认海报，但旧缓存可能未完全清除。");
+  }
+
+  function openPosterFilePicker(replaceId) {
+    if (!devFileInput) return;
+    posterState.replaceId = replaceId;
+    devFileInput.multiple = !replaceId;
+    devFileInput.value = "";
+    devFileInput.click();
+  }
+
+  function initPosterDrop() {
+    if (!developerPage || !devConsoleView || !devDropzone) return;
+
+    function canDrop() {
+      return !developerPage.hidden && !devConsoleView.hidden && siteState.activeView === "posters";
+    }
+
+    function isFileDrag(event) {
+      const types = event.dataTransfer && event.dataTransfer.types;
+      return Boolean(types && Array.prototype.indexOf.call(types, "Files") >= 0);
+    }
+
+    function showDropzone() {
+      if (canDrop()) devDropzone.hidden = false;
+    }
+
+    function hideDropzone() {
+      devDropzone.hidden = true;
+    }
+
+    developerPage.addEventListener("dragenter", function (event) {
+      if (!canDrop() || !isFileDrag(event)) return;
+      event.preventDefault();
+      showDropzone();
+    });
+
+    developerPage.addEventListener("dragover", function (event) {
+      if (!canDrop() || !isFileDrag(event)) return;
+      event.preventDefault();
+      if (event.dataTransfer) event.dataTransfer.dropEffect = "copy";
+      showDropzone();
+    });
+
+    developerPage.addEventListener("dragleave", function (event) {
+      if (!event.relatedTarget || !developerPage.contains(event.relatedTarget)) {
+        hideDropzone();
+      }
+    });
+
+    developerPage.addEventListener("drop", function (event) {
+      if (!canDrop() || !isFileDrag(event)) return;
+      event.preventDefault();
+      event.stopPropagation();
+      hideDropzone();
+      const files = Array.prototype.slice.call(event.dataTransfer.files || []);
+      if (files.length) handlePosterFiles(files, null);
+    });
+
+    document.addEventListener("dragover", function (event) {
+      if (developerPage && !developerPage.hidden && isFileDrag(event)) event.preventDefault();
+    });
+
+    document.addEventListener("drop", function (event) {
+      if (developerPage && !developerPage.hidden && isFileDrag(event)) event.preventDefault();
+    });
+
+    window.addEventListener("dragend", hideDropzone);
+    window.addEventListener("blur", hideDropzone);
+  }
+
+  function initPosterDev() {
+    if (!developerPage || !devGateForm || !devAccessView || !devConsoleView) return;
+
+    document.addEventListener("keydown", function (event) {
+      if (!event.altKey || !event.shiftKey) return;
+      if (event.code !== "KeyC" && String(event.key).toLowerCase() !== "c") return;
+      if (isTypingTarget(event.target)) return;
+      if (!developerPage.hidden) return;
+      event.preventDefault();
+      openDeveloperPage();
+    });
+
+    document.querySelectorAll("[data-dev-back]").forEach(function (element) {
+      element.addEventListener("click", function (event) {
+        event.preventDefault();
+        closeDeveloperPage();
+      });
+    });
+
+    devGateForm.addEventListener("submit", function (event) {
+      event.preventDefault();
+      if (devPassword.value === "zxcvbnm") {
+        devError.textContent = "";
+        devGateForm.classList.remove("is-error");
+        devPassword.value = "";
+        showDevConsole();
+        return;
+      }
+
+      devError.textContent = "访问密码错误，请重试。";
+      devGateForm.classList.remove("is-error");
+      void devGateForm.offsetWidth;
+      devGateForm.classList.add("is-error");
+      devPassword.select();
+    });
+
+    if (devPassword) {
+      devPassword.addEventListener("input", function () {
+        devError.textContent = "";
+      });
+    }
+
+    document.addEventListener("keydown", function (event) {
+      if (event.key === "Escape" && developerPage && !developerPage.hidden) {
+        closeDeveloperPage();
+      }
+    });
+
+    if (devGrid) {
+      devGrid.addEventListener("click", function (event) {
+        const add = event.target.closest(".dev-add-card");
+        if (add && !add.disabled) {
+          openPosterFilePicker(null);
+          return;
+        }
+
+        const button = event.target.closest(".dev-action");
+        if (!button || button.disabled) return;
+
+        const card = button.closest(".dev-card");
+        if (!card) return;
+        const id = card.dataset.id;
+        const action = button.dataset.action;
+
+        if (action === "replace") openPosterFilePicker(id);
+        else if (action === "delete") deletePoster(id);
+        else if (action === "up") movePoster(id, -1);
+        else if (action === "down") movePoster(id, 1);
+      });
+    }
+
+    if (devFileInput) {
+      devFileInput.addEventListener("change", function () {
+        const files = Array.prototype.slice.call(devFileInput.files || []);
+        const replaceId = posterState.replaceId;
+        posterState.replaceId = null;
+        devFileInput.value = "";
+        if (files.length) handlePosterFiles(files, replaceId);
+      });
+    }
+
+    if (devAdd) {
+      devAdd.addEventListener("click", function () {
+        if (posterState.posters.length >= POSTER_MAX) {
+          showToast("最多只能保留 " + POSTER_MAX + " 张海报。");
+          return;
+        }
+        openPosterFilePicker(null);
+      });
+    }
+
+    if (devReset) {
+      devReset.addEventListener("click", function () {
+        if (!posterState.resetArmed) {
+          posterState.resetArmed = true;
+          devReset.classList.add("is-armed");
+          devReset.textContent = "再次点击确认";
+          window.clearTimeout(posterState.resetTimer);
+          posterState.resetTimer = window.setTimeout(disarmDevReset, 3000);
+          return;
+        }
+
+        resetPosters();
+      });
+    }
+
+    renderDevGrid();
+  }
+
+  function formatNewsDate(value) {
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return "";
+    return date.getFullYear() + "." +
+      String(date.getMonth() + 1).padStart(2, "0") + "." +
+      String(date.getDate()).padStart(2, "0");
+  }
+
+  function siteAdminEmpty(kicker, text) {
+    const empty = document.createElement("div");
+    empty.className = "dev-admin-empty";
+    const label = document.createElement("span");
+    label.textContent = kicker;
+    const copy = document.createElement("p");
+    copy.textContent = text;
+    empty.append(label, copy);
+    return empty;
+  }
+
+  function renderPosterWall() {
+    if (!posterWall) return;
+
+    posterWall.innerHTML = "";
+    const items = siteState.gallery;
+    const hasItems = items.length > 0;
+    posterWall.hidden = !hasItems;
+    if (wallEmpty) wallEmpty.hidden = hasItems;
+    if (!hasItems) return;
+
+    items.forEach(function (item, index) {
+      const figure = document.createElement("figure");
+      figure.className = "wall-item is-zoomable";
+      figure.dataset.id = item.id;
+      figure.dataset.wallOpen = item.id;
+      figure.tabIndex = 0;
+      figure.setAttribute("role", "button");
+      figure.setAttribute("aria-label", item.alt + "，查看大图");
+
+      const image = document.createElement("img");
+      image.src = item.src;
+      image.alt = item.alt;
+      image.width = item.width;
+      image.height = item.height;
+      image.loading = index < 4 ? "eager" : "lazy";
+      image.decoding = "async";
+
+      figure.append(image);
+      posterWall.append(figure);
+    });
+  }
+
+  function renderNewsSection() {
+    if (!newsGrid) return;
+
+    newsGrid.innerHTML = "";
+    const items = siteState.news;
+    const hasItems = items.length > 0;
+    newsGrid.hidden = !hasItems;
+    if (newsEmpty) newsEmpty.hidden = hasItems;
+    if (!hasItems) return;
+
+    items.forEach(function (item, index) {
+      const card = document.createElement("article");
+      card.className = "news-card is-clickable";
+      card.dataset.id = item.id;
+      card.dataset.newsOpen = item.id;
+      card.tabIndex = 0;
+      card.setAttribute("role", "button");
+      card.setAttribute("aria-label", item.title + "，查看新闻详情");
+
+      const media = document.createElement("div");
+      media.className = "news-card__media";
+      if (item.image) {
+        const image = document.createElement("img");
+        image.src = item.image;
+        image.alt = item.title;
+        image.loading = index < 2 ? "eager" : "lazy";
+        media.append(image);
+      } else {
+        const placeholder = document.createElement("div");
+        placeholder.className = "news-card__placeholder";
+        const mark = document.createElement("strong");
+        mark.textContent = "NAR";
+        const label = document.createElement("span");
+        label.textContent = "NEWS / NO IMAGE";
+        placeholder.append(mark, label);
+        media.append(placeholder);
+      }
+
+      const body = document.createElement("div");
+      body.className = "news-card__body";
+
+      const meta = document.createElement("div");
+      meta.className = "news-meta";
+      const indexLabel = document.createElement("span");
+      indexLabel.textContent = "NEWS / " + padPosterNumber(index + 1);
+      const dateLabel = document.createElement("span");
+      dateLabel.textContent = formatNewsDate(item.date);
+      meta.append(indexLabel, dateLabel);
+
+      const title = document.createElement("h3");
+      title.textContent = item.title;
+
+      const text = document.createElement("p");
+      text.className = "news-card__text";
+      text.textContent = item.text;
+
+      const author = document.createElement("div");
+      author.className = "news-card__author";
+      const signLabel = document.createElement("span");
+      signLabel.textContent = "SIGNED /";
+      const signName = document.createElement("b");
+      signName.textContent = item.author;
+      author.append(signLabel, signName);
+
+      body.append(meta, title, text, author);
+      card.append(media, body);
+      newsGrid.append(card);
+    });
+  }
+
+  function renderSponsorBar() {
+    if (!sponsorList) return;
+
+    sponsorList.innerHTML = "";
+    siteState.sponsors.forEach(function (sponsor) {
+      if (!sponsor.image) return;
+
+      const tag = sponsor.url ? "a" : "div";
+      const item = document.createElement(tag);
+      item.className = "sponsor-item";
+      if (sponsor.url) {
+        item.href = sponsor.url;
+        item.target = "_blank";
+        item.rel = "noopener noreferrer";
+        item.title = sponsor.name;
+      }
+
+      const image = document.createElement("img");
+      image.src = sponsor.image;
+      image.alt = sponsor.name;
+      image.loading = "lazy";
+      item.append(image);
+      sponsorList.append(item);
+    });
+  }
+
+  function renderTeamsPage() {
+    if (!teamGrid) return;
+
+    teamGrid.innerHTML = "";
+    const items = siteState.teams;
+    const hasItems = items.length > 0;
+    teamGrid.hidden = !hasItems;
+    if (teamEmpty) teamEmpty.hidden = hasItems;
+    if (!hasItems) return;
+
+    items.forEach(function (team, index) {
+      const card = document.createElement("article");
+      card.className = "team-card is-clickable";
+      card.dataset.id = team.id;
+      card.dataset.teamOpen = team.id;
+      card.tabIndex = 0;
+      card.setAttribute("role", "button");
+      card.setAttribute("aria-label", team.name + "，查看车队详情");
+
+      const logo = document.createElement("div");
+      logo.className = "team-card__logo";
+      if (team.logo) {
+        const image = document.createElement("img");
+        image.src = team.logo;
+        image.alt = team.name + " Logo";
+        image.loading = index < 4 ? "eager" : "lazy";
+        logo.append(image);
+      } else {
+        const placeholder = document.createElement("span");
+        placeholder.textContent = team.name.slice(0, 2).toUpperCase();
+        logo.append(placeholder);
+      }
+
+      const body = document.createElement("div");
+      body.className = "team-card__body";
+
+      const top = document.createElement("div");
+      top.className = "team-card__top";
+      const number = document.createElement("span");
+      number.textContent = "TEAM / " + padPosterNumber(index + 1);
+      top.append(number);
+
+      const name = document.createElement("h2");
+      name.textContent = team.name;
+
+      const nameZh = document.createElement("p");
+      nameZh.className = "team-card__zh";
+      nameZh.textContent = team.nameZh;
+
+      const intro = document.createElement("p");
+      intro.className = "team-card__intro";
+      intro.textContent = team.intro;
+
+      body.append(top, name, nameZh, intro);
+
+      if (team.qq) {
+        const qq = document.createElement("div");
+        qq.className = "team-card__qq";
+        const label = document.createElement("span");
+        label.textContent = "QQ GROUP";
+        const value = document.createElement("strong");
+        value.textContent = team.qq;
+        qq.append(label, value);
+        body.append(qq);
+      }
+
+      card.append(logo, body);
+      teamGrid.append(card);
+    });
+  }
+
+  function renderEventsPage() {
+    if (!eventGrid) return;
+
+    eventGrid.innerHTML = "";
+    const items = siteState.events;
+    const hasItems = items.length > 0;
+    eventGrid.hidden = !hasItems;
+    if (eventEmpty) eventEmpty.hidden = hasItems;
+    if (!hasItems) return;
+
+    items.forEach(function (event) {
+      const card = document.createElement("article");
+      card.className = "event-card";
+      card.dataset.eventOpen = event.id;
+      card.tabIndex = 0;
+      card.setAttribute("role", "button");
+      card.setAttribute("aria-label", eventTitle(event) + "，查看详情");
+
+      const logo = document.createElement("div");
+      logo.className = "event-card__logo";
+      if (event.logo) {
+        const image = document.createElement("img");
+        image.src = event.logo;
+        image.alt = eventTitle(event) + " Logo";
+        image.loading = "lazy";
+        logo.append(image);
+      } else {
+        const fallback = document.createElement("span");
+        fallback.textContent = (event.abbr || "FRLS").slice(0, 4);
+        logo.append(fallback);
+      }
+
+      const name = document.createElement("h2");
+      name.textContent = eventTitle(event);
+
+      card.append(logo, name);
+      eventGrid.append(card);
+    });
+  }
+
+  function renderEventAdmin() {
+    if (!eventAdminList) return;
+    if (eventCount) eventCount.textContent = siteState.events.length + " 个赛事";
+    eventAdminList.innerHTML = "";
+
+    if (!siteState.events.length) {
+      eventAdminList.append(siteAdminEmpty("NO EVENT ARCHIVES", "从 FRLS Race Manager 导出存档后，在这里导入。"));
+      return;
+    }
+
+    siteState.events.forEach(function (event) {
+      const row = document.createElement("article");
+      row.className = "event-admin-row";
+      row.dataset.id = event.id;
+
+      const logo = document.createElement("div");
+      logo.className = "event-admin-logo";
+      if (event.logo) {
+        const image = document.createElement("img");
+        image.src = event.logo;
+        image.alt = eventTitle(event) + " Logo";
+        image.loading = "lazy";
+        logo.append(image);
+      } else {
+        const fallback = document.createElement("span");
+        fallback.textContent = "NO LOGO";
+        logo.append(fallback);
+      }
+
+      const info = document.createElement("div");
+      info.className = "event-admin-info";
+      const name = document.createElement("strong");
+      name.textContent = eventTitle(event);
+      const meta = document.createElement("span");
+      const roundCount = event.seasons.reduce(function (sum, season) { return sum + season.rounds.length; }, 0);
+      meta.textContent = event.abbr + " · " + event.drivers.length + " 位车手 · " + roundCount + " 个分站";
+      const intro = document.createElement("p");
+      intro.textContent = event.intro || "无简介";
+      info.append(name, meta, intro);
+
+      const remove = document.createElement("button");
+      remove.className = "dev-action dev-action--delete";
+      remove.type = "button";
+      remove.dataset.eventDelete = event.id;
+      remove.textContent = "删除";
+
+      row.append(logo, info, remove);
+      eventAdminList.append(row);
+    });
+  }
+
+  function renderTeamAdmin() {
+    if (!teamAdminList) return;
+    if (teamCount) teamCount.textContent = siteState.teams.length + " 支车队";
+    teamAdminList.innerHTML = "";
+
+    if (!siteState.teams.length) {
+      teamAdminList.append(siteAdminEmpty("NO TEAMS YET", "添加车队后会显示在官网车队页面。"));
+      return;
+    }
+
+    siteState.teams.forEach(function (team) {
+      const row = document.createElement("article");
+      row.className = "team-admin-row";
+      row.dataset.id = team.id;
+
+      const logo = document.createElement("div");
+      logo.className = "team-admin-logo";
+      if (team.logo) {
+        const image = document.createElement("img");
+        image.src = team.logo;
+        image.alt = team.name + " Logo";
+        image.loading = "lazy";
+        logo.append(image);
+      } else {
+        const placeholder = document.createElement("span");
+        placeholder.textContent = "NO LOGO";
+        logo.append(placeholder);
+      }
+
+      const info = document.createElement("div");
+      info.className = "team-admin-info";
+      const name = document.createElement("strong");
+      name.textContent = team.name;
+      const nameZh = document.createElement("span");
+      nameZh.textContent = team.nameZh;
+      const intro = document.createElement("p");
+      intro.textContent = team.intro;
+      info.append(name, nameZh, intro);
+      if (team.qq) {
+        const qq = document.createElement("small");
+        qq.textContent = "QQ 群：" + team.qq;
+        info.append(qq);
+      }
+
+      const remove = document.createElement("button");
+      remove.className = "dev-action dev-action--delete";
+      remove.type = "button";
+      remove.dataset.teamDelete = team.id;
+      remove.textContent = "删除";
+
+      row.append(logo, info, remove);
+      teamAdminList.append(row);
+    });
+  }
+
+  function renderNewsAdmin() {
+    if (!newsAdminList) return;
+    if (newsCount) newsCount.textContent = siteState.news.length + " 条新闻";
+    newsAdminList.innerHTML = "";
+
+    if (!siteState.news.length) {
+      newsAdminList.append(siteAdminEmpty("NO NEWS YET", "发布的新闻会显示在这里，并同步到官网新闻区。"));
+      return;
+    }
+
+    siteState.news.forEach(function (item) {
+      const article = document.createElement("article");
+      article.className = "admin-news";
+      article.dataset.id = item.id;
+
+      const thumb = document.createElement("div");
+      thumb.className = "admin-news__thumb";
+      if (item.image) {
+        const image = document.createElement("img");
+        image.src = item.image;
+        image.alt = item.title;
+        image.loading = "lazy";
+        thumb.append(image);
+      } else {
+        const placeholder = document.createElement("span");
+        placeholder.className = "admin-news__placeholder";
+        placeholder.textContent = "NAR";
+        thumb.append(placeholder);
+      }
+
+      const info = document.createElement("div");
+      info.className = "admin-news__info";
+      const title = document.createElement("strong");
+      title.textContent = item.title;
+      const meta = document.createElement("span");
+      meta.textContent = formatNewsDate(item.date) + " · " + item.author;
+      const text = document.createElement("p");
+      text.textContent = item.text;
+      info.append(title, meta, text);
+
+      const remove = document.createElement("button");
+      remove.className = "dev-action dev-action--delete";
+      remove.type = "button";
+      remove.dataset.newsDelete = item.id;
+      remove.textContent = "删除";
+
+      article.append(thumb, info, remove);
+      newsAdminList.append(article);
+    });
+  }
+
+  function renderGalleryAdmin() {
+    if (!galleryAdminGrid) return;
+    if (galleryCount) galleryCount.textContent = siteState.gallery.length + " 张海报";
+    galleryAdminGrid.innerHTML = "";
+
+    if (!siteState.gallery.length) {
+      galleryAdminGrid.append(siteAdminEmpty("NO WALL POSTERS", "上传任意比例的图片，官网会自动排版。"));
+      return;
+    }
+
+    siteState.gallery.forEach(function (item) {
+      const card = document.createElement("article");
+      card.className = "dev-gallery-card";
+      card.dataset.id = item.id;
+
+      const thumb = document.createElement("div");
+      thumb.className = "dev-gallery-thumb";
+      const image = document.createElement("img");
+      image.src = item.src;
+      image.alt = item.alt;
+      image.loading = "lazy";
+      thumb.append(image);
+
+      const meta = document.createElement("div");
+      meta.className = "dev-gallery-meta";
+      const name = document.createElement("strong");
+      name.textContent = item.alt.replace(/\s*其他海报\s*$/, "");
+      const size = document.createElement("span");
+      size.textContent = item.width + " × " + item.height;
+      meta.append(name, size);
+
+      const actions = document.createElement("div");
+      actions.className = "dev-gallery-actions";
+      const remove = document.createElement("button");
+      remove.className = "dev-action dev-action--delete";
+      remove.type = "button";
+      remove.dataset.galleryDelete = item.id;
+      remove.textContent = "删除";
+      actions.append(remove);
+
+      card.append(thumb, meta, actions);
+      galleryAdminGrid.append(card);
+    });
+  }
+
+  function renderSponsorAdmin() {
+    if (!sponsorAdminList) return;
+    if (sponsorCount) sponsorCount.textContent = siteState.sponsors.length + " 个赞助商";
+    sponsorAdminList.innerHTML = "";
+
+    if (!siteState.sponsors.length) {
+      sponsorAdminList.append(siteAdminEmpty("NO SPONSORS YET", "添加赞助商后会显示在官网底部赞助商栏。"));
+      return;
+    }
+
+    siteState.sponsors.forEach(function (sponsor) {
+      const row = document.createElement("article");
+      row.className = "sponsor-admin-row";
+      row.dataset.id = sponsor.id;
+
+      const logo = document.createElement("div");
+      logo.className = "sponsor-admin-logo";
+      if (sponsor.image) {
+        const image = document.createElement("img");
+        image.src = sponsor.image;
+        image.alt = sponsor.name;
+        image.loading = "lazy";
+        logo.append(image);
+      } else {
+        const label = document.createElement("span");
+        label.textContent = "NO LOGO";
+        logo.append(label);
+      }
+
+      const info = document.createElement("div");
+      info.className = "sponsor-admin-info";
+      const name = document.createElement("strong");
+      name.textContent = sponsor.name;
+      info.append(name);
+      if (sponsor.url) {
+        const link = document.createElement("a");
+        link.href = sponsor.url;
+        link.target = "_blank";
+        link.rel = "noopener noreferrer";
+        link.textContent = sponsor.url;
+        info.append(link);
+      } else {
+        const note = document.createElement("span");
+        note.textContent = "无链接";
+        info.append(note);
+      }
+
+      const remove = document.createElement("button");
+      remove.className = "dev-action dev-action--delete";
+      remove.type = "button";
+      remove.dataset.sponsorDelete = sponsor.id;
+      remove.textContent = "删除";
+
+      row.append(logo, info, remove);
+      sponsorAdminList.append(row);
+    });
+  }
+
+  async function persistNews(next) {
+    const saved = await writeSiteCollection("news", next);
+    siteState.news = next;
+    renderNewsSection();
+    renderNewsAdmin();
+    if (!saved) showToast("新闻已更新，但无法保存到当前浏览器。");
+    queueSiteFileWrite();
+    return saved;
+  }
+
+  async function persistGallery(next) {
+    const saved = await writeSiteCollection("gallery", next);
+    siteState.gallery = next;
+    renderPosterWall();
+    renderGalleryAdmin();
+    if (!saved) showToast("海报已更新，但无法保存到当前浏览器。");
+    queueSiteFileWrite();
+    return saved;
+  }
+
+  async function persistSponsors(next) {
+    const saved = await writeSiteCollection("sponsors", next);
+    siteState.sponsors = next;
+    renderSponsorBar();
+    renderSponsorAdmin();
+    if (!saved) showToast("赞助商已更新，但无法保存到当前浏览器。");
+    queueSiteFileWrite();
+    return saved;
+  }
+
+  async function persistTeams(next) {
+    const saved = await writeSiteCollection("teams", next);
+    siteState.teams = next;
+    renderTeamsPage();
+    renderTeamAdmin();
+    if (!saved) showToast("车队已更新，但无法保存到当前浏览器。");
+    queueSiteFileWrite();
+    return saved;
+  }
+
+  async function persistEvents(next) {
+    const saved = await writeSiteCollection("events", next);
+    siteState.events = next;
+    renderEventsPage();
+    renderEventAdmin();
+    if (!saved) showToast("赛事已更新，但无法保存到当前浏览器。");
+    queueSiteFileWrite();
+    return saved;
+  }
+
+  async function importEventArchive(file) {
+    let parsed;
+    try {
+      parsed = JSON.parse(await file.text());
+    } catch (error) {
+      showToast("无法读取赛事存档，请选择有效的 JSON 文件。");
+      return false;
+    }
+
+    if (parsed && parsed.archive_type && parsed.archive_type !== "frls-event") {
+      showToast("这不是 FRLS 赛事存档。");
+      return false;
+    }
+
+    const event = normalizeEventArchive(parsed);
+    if (!event) {
+      showToast("赛事存档缺少必要数据。");
+      return false;
+    }
+
+    const next = siteState.events.filter(function (item) { return item.id !== event.id; }).concat(event);
+    const saved = await persistEvents(next);
+    if (saved) {
+      showToast("赛事存档已导入：" + eventTitle(event));
+    }
+    return saved;
+  }
+
+  function buildSiteDataFile() {
+    const payload = {
+      version: 1,
+      updatedAt: new Date().toISOString(),
+      posters: posterState.posters.map(function (poster) {
+        return {
+          id: poster.id,
+          src: poster.src,
+          alt: poster.alt,
+          name: poster.name,
+          kind: poster.kind
+        };
+      }),
+      news: siteState.news,
+      gallery: siteState.gallery,
+      events: siteState.events,
+      teams: siteState.teams,
+      sponsors: siteState.sponsors
+    };
+
+    return "/* FRLSports static site content. Generated by the developer console. */\n" +
+      "window.FRL_SITE_DATA = " + JSON.stringify(payload, null, 2) + ";\n";
+  }
+
+  function downloadSiteDataFile() {
+    const blob = new Blob([buildSiteDataFile()], { type: "text/javascript" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = "site-data.js";
+    document.body.append(link);
+    link.click();
+    link.remove();
+    window.setTimeout(function () { URL.revokeObjectURL(url); }, 1500);
+  }
+
+  async function writeSiteDataFile(options) {
+    const settings = options || {};
+    if (!window.showDirectoryPicker) {
+      if (!settings.auto) {
+        downloadSiteDataFile();
+        showToast("已下载 site-data.js，请替换 assets/js/site-data.js。");
+      }
+      return false;
+    }
+
+    if (!siteDirectoryHandle && settings.auto) return false;
+
+    try {
+      if (!siteDirectoryHandle) {
+        siteDirectoryHandle = await window.showDirectoryPicker({
+          mode: "readwrite",
+          id: "frlsports-site"
+        });
+      }
+
+      const assets = await siteDirectoryHandle.getDirectoryHandle("assets");
+      const jsDir = await assets.getDirectoryHandle("js");
+      const file = await jsDir.getFileHandle("site-data.js", { create: true });
+      const writable = await file.createWritable();
+      await writable.write(buildSiteDataFile());
+      await writable.close();
+
+      if (!settings.auto) showToast("已写入 assets/js/site-data.js。线上站点需重新部署。");
+      return true;
+    } catch (error) {
+      if (error && error.name === "AbortError") return false;
+      siteDirectoryHandle = null;
+      if (!settings.auto) showToast("写入失败：请选择包含 index.html 的网站根目录。");
+      return false;
+    }
+  }
+
+  function queueSiteFileWrite() {
+    if (!siteDirectoryHandle) return;
+    window.clearTimeout(siteWriteTimer);
+    siteWriteTimer = window.setTimeout(function () {
+      writeSiteDataFile({ auto: true });
+    }, 220);
+  }
+
+  function setNewsDraftImage(src) {
+    if (!newsImagePreview) return;
+    const image = newsImagePreview.querySelector("img");
+    if (!image) return;
+    if (src) {
+      image.src = src;
+      image.hidden = false;
+      newsImagePreview.classList.add("has-image");
+      if (newsImageClear) newsImageClear.hidden = false;
+    } else {
+      image.removeAttribute("src");
+      image.hidden = true;
+      newsImagePreview.classList.remove("has-image");
+      if (newsImageClear) newsImageClear.hidden = true;
+    }
+  }
+
+  function setTeamDraftImage(src) {
+    if (!teamLogoPreview) return;
+    const image = teamLogoPreview.querySelector("img");
+    if (!image) return;
+    if (src) {
+      image.src = src;
+      image.hidden = false;
+      teamLogoPreview.classList.add("has-image");
+      if (teamLogoClear) teamLogoClear.hidden = false;
+    } else {
+      image.removeAttribute("src");
+      image.hidden = true;
+      teamLogoPreview.classList.remove("has-image");
+      if (teamLogoClear) teamLogoClear.hidden = true;
+    }
+  }
+
+  function setSponsorDraftImage(src) {
+    if (!sponsorImagePreview) return;
+    const image = sponsorImagePreview.querySelector("img");
+    if (!image) return;
+    if (src) {
+      image.src = src;
+      image.hidden = false;
+      sponsorImagePreview.classList.add("has-image");
+      if (sponsorImageClear) sponsorImageClear.hidden = false;
+    } else {
+      image.removeAttribute("src");
+      image.hidden = true;
+      sponsorImagePreview.classList.remove("has-image");
+      if (sponsorImageClear) sponsorImageClear.hidden = true;
+    }
+  }
+
+  function resetNewsForm() {
+    if (newsTitle) newsTitle.value = "";
+    if (newsText) newsText.value = "";
+    if (newsAuthor) newsAuthor.value = "";
+    siteState.newsDraftImage = "";
+    setNewsDraftImage("");
+    if (newsImageInput) newsImageInput.value = "";
+    if (newsError) newsError.textContent = "";
+  }
+
+  function resetSponsorForm() {
+    if (sponsorName) sponsorName.value = "";
+    if (sponsorUrl) sponsorUrl.value = "";
+    siteState.sponsorDraftImage = "";
+    setSponsorDraftImage("");
+    if (sponsorImageInput) sponsorImageInput.value = "";
+    if (sponsorError) sponsorError.textContent = "";
+  }
+
+  function resetTeamForm() {
+    if (teamName) teamName.value = "";
+    if (teamNameZh) teamNameZh.value = "";
+    if (teamIntro) teamIntro.value = "";
+    if (teamQq) teamQq.value = "";
+    siteState.teamDraftImage = "";
+    setTeamDraftImage("");
+    if (teamLogoInput) teamLogoInput.value = "";
+    if (teamError) teamError.textContent = "";
+  }
+
+  async function processGalleryUploads(files) {
+    if (siteState.galleryBusy) return;
+    const accepted = Array.prototype.slice.call(files).filter(isImageFile);
+    if (!accepted.length) {
+      showToast("请选择图片文件。");
+      return;
+    }
+
+    const remaining = 36 - siteState.gallery.length;
+    if (remaining <= 0) {
+      showToast("其他海报最多保留 36 张。");
+      return;
+    }
+
+    const take = accepted.slice(0, remaining);
+    siteState.galleryBusy = true;
+    showToast("正在处理 " + take.length + " 张海报…");
+    try {
+      const created = [];
+      for (const file of take) {
+        created.push(await processGalleryImage(file));
+      }
+      const saved = await persistGallery(siteState.gallery.concat(created));
+      if (saved) showToast(created.length + " 张其他海报已上传" + (accepted.length > take.length ? "，已达上限。" : "。"));
+    } catch (error) {
+      showToast("图片处理失败，请重试。");
+    } finally {
+      siteState.galleryBusy = false;
+    }
+  }
+
+  function switchDevView(name) {
+    const valid = ["posters", "news", "events", "gallery", "teams", "sponsors"].indexOf(name) >= 0 ? name : "posters";
+    siteState.activeView = valid;
+
+    devViews.forEach(function (view) {
+      view.hidden = view.dataset.devView !== valid;
+    });
+
+    devRailLinks.forEach(function (link) {
+      const active = link.dataset.devView === valid;
+      link.classList.toggle("is-active", active);
+      if (active) link.setAttribute("aria-current", "page");
+      else link.removeAttribute("aria-current");
+    });
+
+    if (devDropzone) devDropzone.hidden = true;
+    if (valid === "posters") renderDevGrid();
+    else if (valid === "news") renderNewsAdmin();
+    else if (valid === "events") renderEventAdmin();
+    else if (valid === "gallery") renderGalleryAdmin();
+    else if (valid === "sponsors") renderSponsorAdmin();
+  }
+
+  function detailElement(tag, className, text) {
+    const node = document.createElement(tag);
+    if (className) node.className = className;
+    if (text !== undefined) node.textContent = text;
+    return node;
+  }
+
+  function createPointsChart(event) {
+    const wrapper = detailElement("div", "points-chart");
+    const chart = event.points_chart;
+    if (!chart || !chart.labels || !chart.labels.length || !chart.series || !chart.series.length) {
+      wrapper.append(detailElement("p", "detail-note", "该赛事暂无可视化积分数据。"));
+      return wrapper;
+    }
+
+    const labels = chart.labels;
+    const series = chart.series.slice(0, 8);
+    const width = 880;
+    const height = 270;
+    const pad = { left: 48, right: 18, top: 18, bottom: 42 };
+    const plotW = width - pad.left - pad.right;
+    const plotH = height - pad.top - pad.bottom;
+    let maxValue = 10;
+    series.forEach(function (entry) {
+      entry.values.forEach(function (value) { maxValue = Math.max(maxValue, Number(value) || 0); });
+    });
+    maxValue = Math.ceil(maxValue / 10) * 10;
+
+    const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    svg.setAttribute("viewBox", "0 0 " + width + " " + height);
+    svg.setAttribute("role", "img");
+    svg.setAttribute("aria-label", eventTitle(event) + " 累计积分曲线");
+
+    const grid = document.createElementNS("http://www.w3.org/2000/svg", "g");
+    for (let i = 0; i <= 4; i += 1) {
+      const y = pad.top + (plotH / 4) * i;
+      const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
+      line.setAttribute("x1", String(pad.left));
+      line.setAttribute("x2", String(width - pad.right));
+      line.setAttribute("y1", String(y));
+      line.setAttribute("y2", String(y));
+      line.setAttribute("stroke", "rgba(255,255,255,0.09)");
+      line.setAttribute("stroke-width", "1");
+      grid.append(line);
+      const text = document.createElementNS("http://www.w3.org/2000/svg", "text");
+      text.setAttribute("x", String(pad.left - 10));
+      text.setAttribute("y", String(y + 3));
+      text.setAttribute("text-anchor", "end");
+      text.setAttribute("fill", "#727278");
+      text.setAttribute("font-size", "9");
+      text.textContent = String(Math.round(maxValue - (maxValue / 4) * i));
+      grid.append(text);
+    }
+    svg.append(grid);
+
+    const xAt = function (index) {
+      return labels.length <= 1 ? pad.left + plotW / 2 : pad.left + (plotW * index) / (labels.length - 1);
+    };
+    const yAt = function (value) {
+      return pad.top + plotH - (Math.max(0, Number(value) || 0) / maxValue) * plotH;
+    };
+
+    labels.forEach(function (label, index) {
+      if (labels.length > 9 && index % 2 !== 0 && index !== labels.length - 1) return;
+      const text = document.createElementNS("http://www.w3.org/2000/svg", "text");
+      text.setAttribute("x", String(xAt(index)));
+      text.setAttribute("y", String(height - 16));
+      text.setAttribute("text-anchor", "middle");
+      text.setAttribute("fill", "#727278");
+      text.setAttribute("font-size", "8");
+      text.textContent = label.length > 18 ? label.slice(0, 17) + "…" : label;
+      svg.append(text);
+    });
+
+    series.forEach(function (entry) {
+      const points = entry.values.map(function (value, index) {
+        return xAt(index) + "," + yAt(value);
+      }).join(" ");
+      const polyline = document.createElementNS("http://www.w3.org/2000/svg", "polyline");
+      polyline.setAttribute("points", points);
+      polyline.setAttribute("fill", "none");
+      polyline.setAttribute("stroke", entry.color || "#ff4657");
+      polyline.setAttribute("stroke-width", "2");
+      polyline.setAttribute("stroke-linecap", "round");
+      polyline.setAttribute("stroke-linejoin", "round");
+      svg.append(polyline);
+
+      entry.values.forEach(function (value, index) {
+        const circle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+        circle.setAttribute("cx", String(xAt(index)));
+        circle.setAttribute("cy", String(yAt(value)));
+        circle.setAttribute("r", "2.2");
+        circle.setAttribute("fill", entry.color || "#ff4657");
+        svg.append(circle);
+      });
+    });
+
+    wrapper.append(svg);
+    const legend = detailElement("div", "chart-legend");
+    series.forEach(function (entry) {
+      const item = detailElement("span", "chart-legend-item");
+      const dot = detailElement("i");
+      dot.style.background = entry.color || "#ff4657";
+      item.append(dot, document.createTextNode(entry.car_number ? "#" + entry.car_number + " " + entry.driver_name : entry.driver_name));
+      legend.append(item);
+    });
+    wrapper.append(legend);
+    return wrapper;
+  }
+
+  function createDataTable(headers, rows) {
+    const wrap = detailElement("div", "detail-table-wrap");
+    const table = detailElement("table", "detail-table");
+    const thead = document.createElement("thead");
+    const tr = document.createElement("tr");
+    headers.forEach(function (label) { tr.append(detailElement("th", "", label)); });
+    thead.append(tr);
+    const tbody = document.createElement("tbody");
+    rows.forEach(function (cells) {
+      const row = document.createElement("tr");
+      cells.forEach(function (value) { row.append(detailElement("td", "", String(value))); });
+      tbody.append(row);
+    });
+    table.append(thead, tbody);
+    wrap.append(table);
+    return wrap;
+  }
+
+  function buildNewsDetail(item) {
+    const frag = document.createDocumentFragment();
+    frag.append(detailElement("p", "detail-kicker", "NEWSROOM / " + formatNewsDate(item.date)));
+    const title = detailElement("h2", "detail-title", item.title);
+    title.id = "detailTitle";
+    frag.append(title);
+    frag.append(detailElement("p", "detail-byline", "SIGNED / " + item.author));
+    if (item.image) {
+      const image = document.createElement("img");
+      image.className = "detail-news-image";
+      image.src = item.image;
+      image.alt = item.title;
+      frag.append(image);
+    }
+    frag.append(detailElement("p", "detail-copy", item.text));
+    return frag;
+  }
+
+  function buildTeamDetail(team) {
+    const frag = document.createDocumentFragment();
+    const header = detailElement("div", "detail-identity");
+    const logo = detailElement("div", "detail-logo");
+    if (team.logo) {
+      const image = document.createElement("img");
+      image.src = team.logo;
+      image.alt = team.name + " Logo";
+      logo.append(image);
+    } else {
+      logo.append(detailElement("span", "", "FRLS"));
+    }
+    const copy = detailElement("div", "detail-identity-copy");
+    copy.append(detailElement("p", "detail-kicker", "TEAM PROFILE / 车队"));
+    const title = detailElement("h2", "detail-title", team.name);
+    title.id = "detailTitle";
+    copy.append(title, detailElement("p", "detail-subtitle", team.nameZh));
+    header.append(logo, copy);
+    frag.append(header);
+    frag.append(detailElement("p", "detail-copy", team.intro));
+    if (team.qq) {
+      const qq = detailElement("div", "detail-qq");
+      qq.append(detailElement("span", "", "QQ GROUP"), detailElement("strong", "", team.qq));
+      frag.append(qq);
+    }
+    return frag;
+  }
+
+  function buildEventDetail(event) {
+    const frag = document.createDocumentFragment();
+    const header = detailElement("div", "detail-identity");
+    const logo = detailElement("div", "detail-logo detail-logo--event");
+    if (event.logo) {
+      const image = document.createElement("img");
+      image.src = event.logo;
+      image.alt = eventTitle(event) + " Logo";
+      logo.append(image);
+    } else {
+      logo.append(detailElement("span", "", event.abbr || "FRLS"));
+    }
+    const copy = detailElement("div", "detail-identity-copy");
+    copy.append(detailElement("p", "detail-kicker", "EVENT DOSSIER / " + (event.abbr || "EVENT")));
+    const title = detailElement("h2", "detail-title", event.full_name || eventTitle(event));
+    title.id = "detailTitle";
+    copy.append(title);
+    if (event.cn_name) copy.append(detailElement("p", "detail-subtitle", event.cn_name));
+    const meta = detailElement("div", "detail-meta");
+    if (event.race_type) meta.append(detailElement("span", "", event.race_type));
+    meta.append(detailElement("span", "", event.points_enabled ? "AUTO POINTS" : "MANUAL POINTS"));
+    copy.append(meta);
+    header.append(logo, copy);
+    frag.append(header);
+    if (event.intro) frag.append(detailElement("p", "detail-copy", event.intro));
+
+    const roundCount = event.seasons.reduce(function (sum, season) { return sum + season.rounds.length; }, 0);
+    const stats = detailElement("div", "detail-stats");
+    [
+      [String(event.drivers.length), "车手"],
+      [String(roundCount), "分站"],
+      [String(event.seasons.length), "赛季"],
+      [String(event.groups.length || 1), "组别"]
+    ].forEach(function (pair) {
+      const item = detailElement("div");
+      item.append(detailElement("strong", "", pair[0]), detailElement("span", "", pair[1]));
+      stats.append(item);
+    });
+    frag.append(stats);
+
+    frag.append(detailElement("h3", "detail-heading", "累计积分 / POINTS"));
+    frag.append(createPointsChart(event));
+
+    frag.append(detailElement("h3", "detail-heading", "车手排名 / STANDINGS"));
+    if (event.standings.length) {
+      frag.append(createDataTable(
+        ["#", "车手", "车号", "组别", "积分", "出赛", "胜场", "领奖台"],
+        event.standings.map(function (row) {
+          return [row.rank, row.driver_name, row.car_number ? "#" + row.car_number : "—", row.group || "—", fmtEventNumber(row.points), row.starts, row.wins, row.podiums];
+        })
+      ));
+    } else {
+      frag.append(detailElement("p", "detail-note", "暂无排名数据。"));
+    }
+
+    event.seasons.forEach(function (season) {
+      frag.append(detailElement("h3", "detail-heading", (season.year ? season.year + " · " : "") + season.name));
+      if (!season.rounds.length) {
+        frag.append(detailElement("p", "detail-note", "暂无分站。"));
+        return;
+      }
+      season.rounds.forEach(function (rnd, index) {
+        const block = detailElement("section", "round-detail");
+        const head = detailElement("div", "round-detail-head");
+        head.append(detailElement("span", "", "R" + padPosterNumber(index + 1)));
+        head.append(detailElement("strong", "", rnd.name));
+        if (rnd.date) head.append(detailElement("small", "", rnd.date));
+        block.append(head);
+        if (rnd.results.length) {
+          block.append(createDataTable(
+            ["名次", "车手", "车号", "组别", "差距", "积分"],
+            rnd.results.map(function (result) {
+              return [result.position, result.driver_name, result.car_number ? "#" + result.car_number : "—", result.group || "—", result.gap || "—", fmtEventNumber(result.points)];
+            })
+          ));
+        } else {
+          block.append(detailElement("p", "detail-note", "成绩待录入。"));
+        }
+        frag.append(block);
+      });
+    });
+    return frag;
+  }
+
+  function fmtEventNumber(value) {
+    const number = Number(value) || 0;
+    return Math.abs(number - Math.round(number)) < 1e-9 ? String(Math.round(number)) : String(Number(number.toFixed(1)));
+  }
+
+  let detailLastFocus = null;
+
+  function openDetail(type, id) {
+    if (!detailModal || !detailBody) return;
+    const item = type === "news" ? siteState.news.find(function (entry) { return entry.id === id; })
+      : type === "team" ? siteState.teams.find(function (entry) { return entry.id === id; })
+        : siteState.events.find(function (entry) { return entry.id === id; });
+    if (!item) return;
+
+    detailBody.innerHTML = "";
+    detailBody.append(type === "news" ? buildNewsDetail(item) : type === "team" ? buildTeamDetail(item) : buildEventDetail(item));
+    detailLastFocus = document.activeElement;
+    detailModal.hidden = false;
+    document.body.classList.add("detail-open");
+    window.setTimeout(function () {
+      if (detailClose) detailClose.focus({ preventScroll: true });
+    }, 40);
+  }
+
+  function closeDetail() {
+    if (!detailModal || detailModal.hidden) return;
+    detailModal.hidden = true;
+    document.body.classList.remove("detail-open");
+    detailBody.innerHTML = "";
+    if (detailLastFocus instanceof HTMLElement) detailLastFocus.focus({ preventScroll: true });
+    detailLastFocus = null;
+  }
+
+  function initDetails() {
+    if (!detailModal) return;
+    if (detailClose) detailClose.addEventListener("click", closeDetail);
+    detailModal.addEventListener("click", function (event) {
+      if (event.target === detailModal) closeDetail();
+    });
+    document.addEventListener("keydown", function (event) {
+      if (event.key === "Escape" && !detailModal.hidden) {
+        event.preventDefault();
+        closeDetail();
+      }
+    });
+
+    const activate = function (event) {
+      const trigger = event.target.closest("[data-news-open], [data-team-open], [data-event-open]");
+      if (!trigger) return;
+      if (event.type === "keydown") {
+        if (event.key !== "Enter" && event.key !== " ") return;
+        event.preventDefault();
+      } else if (event.target.closest("a, button")) {
+        return;
+      }
+      if (trigger.dataset.newsOpen) openDetail("news", trigger.dataset.newsOpen);
+      else if (trigger.dataset.teamOpen) openDetail("team", trigger.dataset.teamOpen);
+      else openDetail("event", trigger.dataset.eventOpen);
+    };
+
+    [newsGrid, teamGrid, eventGrid].forEach(function (grid) {
+      if (!grid) return;
+      grid.addEventListener("click", activate);
+      grid.addEventListener("keydown", activate);
+    });
+  }
+
+  let posterLightbox = null;
+  let posterLightboxImage = null;
+  let posterLightboxTitle = null;
+  let posterLightboxMeta = null;
+  let posterLightboxClose = null;
+  let lightboxLastFocus = null;
+
+  function ensurePosterLightbox() {
+    if (posterLightbox) return;
+    posterLightbox = detailElement("div", "poster-lightbox");
+    posterLightbox.hidden = true;
+    posterLightbox.setAttribute("role", "dialog");
+    posterLightbox.setAttribute("aria-modal", "true");
+    posterLightbox.setAttribute("aria-label", "海报大图");
+
+    const close = detailElement("button", "lightbox-close", "关闭 ×");
+    close.type = "button";
+    close.setAttribute("aria-label", "关闭大图");
+
+    const figure = detailElement("figure", "lightbox-figure");
+    posterLightboxImage = document.createElement("img");
+    posterLightboxImage.alt = "";
+    posterLightboxImage.draggable = false;
+    const caption = detailElement("figcaption", "lightbox-caption");
+    posterLightboxMeta = detailElement("span", "", "");
+    posterLightboxTitle = detailElement("strong", "", "");
+    caption.append(posterLightboxMeta, posterLightboxTitle);
+    figure.append(posterLightboxImage, caption);
+    posterLightbox.append(close, figure);
+
+    posterLightboxClose = close;
+    close.addEventListener("click", closePosterLightbox);
+    posterLightbox.addEventListener("click", function (event) {
+      if (event.target === posterLightbox) closePosterLightbox();
+    });
+    document.addEventListener("keydown", function (event) {
+      if (event.key === "Escape" && !posterLightbox.hidden) {
+        event.preventDefault();
+        closePosterLightbox();
+      }
+    });
+    document.body.append(posterLightbox);
+  }
+
+  function openPosterLightbox(src, alt, title, meta) {
+    if (!src) return;
+    ensurePosterLightbox();
+    posterLightboxImage.src = src;
+    posterLightboxImage.alt = alt || title || "FRLSports 海报";
+    posterLightboxMeta.textContent = meta || "FRLSPORTS / POSTER";
+    posterLightboxTitle.textContent = title || alt || "FRLSports 海报";
+    lightboxLastFocus = document.activeElement;
+    posterLightbox.hidden = false;
+    document.body.classList.add("lightbox-open");
+    window.setTimeout(function () { posterLightboxClose.focus({ preventScroll: true }); }, 40);
+  }
+
+  function closePosterLightbox() {
+    if (!posterLightbox || posterLightbox.hidden) return;
+    posterLightbox.hidden = true;
+    document.body.classList.remove("lightbox-open");
+    if (lightboxLastFocus instanceof HTMLElement) lightboxLastFocus.focus({ preventScroll: true });
+    lightboxLastFocus = null;
+  }
+
+  function initPosterLightbox() {
+    if (!posterWall) return;
+    const activate = function (event) {
+      const item = event.target.closest("[data-wall-open]");
+      if (!item) return;
+      if (event.type === "keydown") {
+        if (event.key !== "Enter" && event.key !== " ") return;
+        event.preventDefault();
+      }
+      const data = siteState.gallery.find(function (entry) { return entry.id === item.dataset.wallOpen; });
+      if (data) openPosterLightbox(data.src, data.alt, data.alt.replace(/\s*其他海报\s*$/, "") || data.alt, "其他海报 / POSTER WALL");
+    };
+    posterWall.addEventListener("click", activate);
+    posterWall.addEventListener("keydown", activate);
+  }
+
+  function initDonation() {
+    const openers = Array.prototype.slice.call(document.querySelectorAll("[data-donate-open]"));
+    if (!openers.length) return;
+
+    const backdrop = detailElement("div", "donate-backdrop");
+    backdrop.hidden = true;
+    backdrop.setAttribute("role", "dialog");
+    backdrop.setAttribute("aria-modal", "true");
+    backdrop.setAttribute("aria-labelledby", "donateTitle");
+
+    const dialog = detailElement("div", "donate-dialog");
+    const close = detailElement("button", "donate-close", "关闭 ×");
+    close.type = "button";
+    close.setAttribute("aria-label", "关闭捐赠窗口");
+
+    const head = detailElement("div", "donate-head");
+    const icon = document.createElement("img");
+    icon.className = "donate-app-icon";
+    icon.src = "assets/images/frls_app_icon.png";
+    icon.alt = "FRLS Race Manager";
+    const copy = detailElement("div", "donate-copy");
+    copy.append(detailElement("p", "donate-kicker", "SUPPORT THE PROJECT"));
+    const title = detailElement("h2", "donate-title", "赞助支持 FRLS");
+    title.id = "donateTitle";
+    copy.append(title);
+    copy.append(detailElement("p", "donate-intro", "如果 FRLS Race Manager 对你的赛事管理有帮助，欢迎扫码支持后续开发。"));
+    head.append(icon, copy);
+
+    const qr = detailElement("div", "donate-qr");
+    const qrImage = document.createElement("img");
+    qrImage.src = "assets/images/sponsor_qr.jpg";
+    qrImage.alt = "赞助收款二维码";
+    qr.append(qrImage);
+    const scan = detailElement("p", "donate-scan", "扫码支持  /  SCAN TO SUPPORT");
+    const done = detailElement("button", "donate-done", "关闭");
+    done.type = "button";
+
+    dialog.append(close, head, qr, scan, done);
+    backdrop.append(dialog);
+    document.body.append(backdrop);
+
+    let lastFocus = null;
+    function closeDonation() {
+      if (backdrop.hidden) return;
+      backdrop.hidden = true;
+      document.body.classList.remove("donate-open");
+      if (lastFocus instanceof HTMLElement) lastFocus.focus({ preventScroll: true });
+      lastFocus = null;
+    }
+    function openDonation() {
+      lastFocus = document.activeElement;
+      backdrop.hidden = false;
+      document.body.classList.add("donate-open");
+      window.setTimeout(function () { close.focus({ preventScroll: true }); }, 40);
+    }
+
+    openers.forEach(function (button) { button.addEventListener("click", openDonation); });
+    close.addEventListener("click", closeDonation);
+    done.addEventListener("click", closeDonation);
+    backdrop.addEventListener("click", function (event) {
+      if (event.target === backdrop) closeDonation();
+    });
+    document.addEventListener("keydown", function (event) {
+      if (event.key === "Escape" && !backdrop.hidden) {
+        event.preventDefault();
+        closeDonation();
+      }
+    });
+  }
+
+  function initContentDev() {
+    if (devWriteFile) {
+      devWriteFile.addEventListener("click", function () {
+        writeSiteDataFile();
+      });
+    }
+
+    if (devRailLinks.length) {
+      devRailLinks.forEach(function (link) {
+        link.addEventListener("click", function () {
+          switchDevView(link.dataset.devView);
+        });
+      });
+    }
+
+    if (newsImagePick && newsImageInput) {
+      newsImagePick.addEventListener("click", function () {
+        newsImageInput.click();
+      });
+    }
+
+    if (newsImageInput) {
+      newsImageInput.addEventListener("change", async function () {
+        const file = newsImageInput.files && newsImageInput.files[0];
+        newsImageInput.value = "";
+        if (!file) return;
+        if (!isImageFile(file)) {
+          if (newsError) newsError.textContent = "请选择图片文件。";
+          return;
+        }
+        try {
+          showToast("正在处理新闻图片…");
+          const src = await processNewsImage(file);
+          siteState.newsDraftImage = src;
+          setNewsDraftImage(src);
+          if (newsError) newsError.textContent = "";
+        } catch (error) {
+          if (newsError) newsError.textContent = "图片处理失败，请换一张图片。";
+        }
+      });
+    }
+
+    if (newsImageClear) {
+      newsImageClear.addEventListener("click", function () {
+        siteState.newsDraftImage = "";
+        setNewsDraftImage("");
+        if (newsImageInput) newsImageInput.value = "";
+      });
+    }
+
+    if (newsForm) {
+      newsForm.addEventListener("submit", async function (event) {
+        event.preventDefault();
+        if (siteState.newsBusy) return;
+
+        const title = newsTitle ? newsTitle.value.trim() : "";
+        const text = newsText ? newsText.value.trim() : "";
+        const author = newsAuthor && newsAuthor.value.trim() ? newsAuthor.value.trim() : "FRLSports";
+
+        if (!title || !text) {
+          if (newsError) newsError.textContent = "标题和正文不能为空。";
+          return;
+        }
+
+        siteState.newsBusy = true;
+        const item = {
+          id: createSiteId("news"),
+          title: title.slice(0, 120),
+          text: text.slice(0, 2000),
+          author: author.slice(0, 60),
+          image: siteState.newsDraftImage,
+          date: new Date().toISOString()
+        };
+
+        try {
+          const saved = await persistNews([item].concat(siteState.news));
+          if (saved) {
+            showToast("新闻已发布。");
+            resetNewsForm();
+          }
+        } finally {
+          siteState.newsBusy = false;
+        }
+      });
+    }
+
+    if (newsAdminList) {
+      newsAdminList.addEventListener("click", async function (event) {
+        const button = event.target.closest("[data-news-delete]");
+        if (!button) return;
+        if (!window.confirm("确认删除这条新闻？")) return;
+        const next = siteState.news.filter(function (item) {
+          return item.id !== button.dataset.newsDelete;
+        });
+        const saved = await persistNews(next);
+        if (saved) showToast("新闻已删除。");
+      });
+    }
+
+    if (eventImportPick && eventArchiveInput) {
+      eventImportPick.addEventListener("click", function () {
+        eventArchiveInput.click();
+      });
+    }
+
+    if (eventArchiveInput) {
+      eventArchiveInput.addEventListener("change", async function () {
+        const file = eventArchiveInput.files && eventArchiveInput.files[0];
+        eventArchiveInput.value = "";
+        if (file) await importEventArchive(file);
+      });
+    }
+
+    if (eventAdminList) {
+      eventAdminList.addEventListener("click", async function (event) {
+        const button = event.target.closest("[data-event-delete]");
+        if (!button) return;
+        if (!window.confirm("确认删除这个赛事存档？")) return;
+        const next = siteState.events.filter(function (item) {
+          return item.id !== button.dataset.eventDelete;
+        });
+        const saved = await persistEvents(next);
+        if (saved) showToast("赛事存档已删除。");
+      });
+    }
+
+    if (galleryPick && galleryFileInput) {
+      galleryPick.addEventListener("click", function () {
+        galleryFileInput.click();
+      });
+    }
+
+    if (galleryFileInput) {
+      galleryFileInput.addEventListener("change", function () {
+        const files = Array.prototype.slice.call(galleryFileInput.files || []);
+        galleryFileInput.value = "";
+        if (files.length) processGalleryUploads(files);
+      });
+    }
+
+    if (galleryAdminGrid) {
+      galleryAdminGrid.addEventListener("click", async function (event) {
+        const button = event.target.closest("[data-gallery-delete]");
+        if (!button) return;
+        if (!window.confirm("确认删除这张其他海报？")) return;
+        const next = siteState.gallery.filter(function (item) {
+          return item.id !== button.dataset.galleryDelete;
+        });
+        const saved = await persistGallery(next);
+        if (saved) showToast("其他海报已删除。");
+      });
+    }
+
+    if (sponsorImagePick && sponsorImageInput) {
+      sponsorImagePick.addEventListener("click", function () {
+        sponsorImageInput.click();
+      });
+    }
+
+    if (sponsorImageInput) {
+      sponsorImageInput.addEventListener("change", async function () {
+        const file = sponsorImageInput.files && sponsorImageInput.files[0];
+        sponsorImageInput.value = "";
+        if (!file) return;
+        if (!isImageFile(file)) {
+          if (sponsorError) sponsorError.textContent = "请选择图片文件。";
+          return;
+        }
+        try {
+          showToast("正在处理赞助商 Logo…");
+          const src = await processSponsorLogo(file);
+          siteState.sponsorDraftImage = src;
+          setSponsorDraftImage(src);
+          if (sponsorError) sponsorError.textContent = "";
+        } catch (error) {
+          if (sponsorError) sponsorError.textContent = "图片处理失败，请换一张图片。";
+        }
+      });
+    }
+
+    if (sponsorImageClear) {
+      sponsorImageClear.addEventListener("click", function () {
+        siteState.sponsorDraftImage = "";
+        setSponsorDraftImage("");
+        if (sponsorImageInput) sponsorImageInput.value = "";
+      });
+    }
+
+    if (sponsorForm) {
+      sponsorForm.addEventListener("submit", async function (event) {
+        event.preventDefault();
+        if (siteState.sponsorBusy) return;
+
+        const name = sponsorName ? sponsorName.value.trim() : "";
+        const rawUrl = sponsorUrl ? sponsorUrl.value.trim() : "";
+        let url = "";
+        if (!name) {
+          if (sponsorError) sponsorError.textContent = "赞助商名称不能为空。";
+          return;
+        }
+        if (!siteState.sponsorDraftImage) {
+          if (sponsorError) sponsorError.textContent = "请上传赞助商 Logo。";
+          return;
+        }
+        if (rawUrl) {
+          try {
+            const parsed = new URL(rawUrl);
+            if (parsed.protocol !== "http:" && parsed.protocol !== "https:") throw new Error("Invalid protocol");
+            url = rawUrl;
+          } catch (error) {
+            if (sponsorError) sponsorError.textContent = "请输入有效的 http:// 或 https:// 链接。";
+            return;
+          }
+        }
+
+        siteState.sponsorBusy = true;
+        const item = {
+          id: createSiteId("sponsor"),
+          name: name.slice(0, 60),
+          url: url.slice(0, 300),
+          image: siteState.sponsorDraftImage
+        };
+
+        try {
+          const saved = await persistSponsors(siteState.sponsors.concat(item));
+          if (saved) {
+            showToast("赞助商已添加。");
+            resetSponsorForm();
+          }
+        } finally {
+          siteState.sponsorBusy = false;
+        }
+      });
+    }
+
+    if (sponsorAdminList) {
+      sponsorAdminList.addEventListener("click", async function (event) {
+        const button = event.target.closest("[data-sponsor-delete]");
+        if (!button) return;
+        if (!window.confirm("确认删除这个赞助商？")) return;
+        const next = siteState.sponsors.filter(function (item) {
+          return item.id !== button.dataset.sponsorDelete;
+        });
+        const saved = await persistSponsors(next);
+        if (saved) showToast("赞助商已删除。");
+      });
+    }
+
+    if (teamLogoPick && teamLogoInput) {
+      teamLogoPick.addEventListener("click", function () {
+        teamLogoInput.click();
+      });
+    }
+
+    if (teamLogoInput) {
+      teamLogoInput.addEventListener("change", async function () {
+        const file = teamLogoInput.files && teamLogoInput.files[0];
+        teamLogoInput.value = "";
+        if (!file) return;
+        if (!isImageFile(file)) {
+          if (teamError) teamError.textContent = "请选择图片文件。";
+          return;
+        }
+        try {
+          showToast("正在处理车队 Logo…");
+          const src = await processTeamLogo(file);
+          siteState.teamDraftImage = src;
+          setTeamDraftImage(src);
+          if (teamError) teamError.textContent = "";
+        } catch (error) {
+          if (teamError) teamError.textContent = "图片处理失败，请换一张图片。";
+        }
+      });
+    }
+
+    if (teamLogoClear) {
+      teamLogoClear.addEventListener("click", function () {
+        siteState.teamDraftImage = "";
+        setTeamDraftImage("");
+        if (teamLogoInput) teamLogoInput.value = "";
+      });
+    }
+
+    if (teamForm) {
+      teamForm.addEventListener("submit", async function (event) {
+        event.preventDefault();
+        if (siteState.teamBusy) return;
+
+        const name = teamName ? teamName.value.trim() : "";
+        const nameZh = teamNameZh ? teamNameZh.value.trim() : "";
+        const intro = teamIntro ? teamIntro.value.trim() : "";
+        const qq = teamQq ? teamQq.value.trim() : "";
+
+        if (!name || !nameZh || !intro) {
+          if (teamError) teamError.textContent = "名称、中文名称和简介不能为空。";
+          return;
+        }
+        if (!siteState.teamDraftImage) {
+          if (teamError) teamError.textContent = "请上传车队 Logo。";
+          return;
+        }
+
+        siteState.teamBusy = true;
+        const item = {
+          id: createSiteId("team"),
+          name: name.slice(0, 80),
+          nameZh: nameZh.slice(0, 40),
+          intro: intro.slice(0, 600),
+          qq: qq.slice(0, 40),
+          logo: siteState.teamDraftImage
+        };
+
+        try {
+          const saved = await persistTeams(siteState.teams.concat(item));
+          if (saved) {
+            showToast("车队已添加。");
+            resetTeamForm();
+          }
+        } finally {
+          siteState.teamBusy = false;
+        }
+      });
+    }
+
+    if (teamAdminList) {
+      teamAdminList.addEventListener("click", async function (event) {
+        const button = event.target.closest("[data-team-delete]");
+        if (!button) return;
+        if (!window.confirm("确认删除这支车队？")) return;
+        const next = siteState.teams.filter(function (item) {
+          return item.id !== button.dataset.teamDelete;
+        });
+        const saved = await persistTeams(next);
+        if (saved) showToast("车队已删除。");
+      });
+    }
+
+    if (newsTitle) newsTitle.addEventListener("input", function () { if (newsError) newsError.textContent = ""; });
+    if (newsText) newsText.addEventListener("input", function () { if (newsError) newsError.textContent = ""; });
+    if (newsAuthor) newsAuthor.addEventListener("input", function () { if (newsError) newsError.textContent = ""; });
+    if (sponsorName) sponsorName.addEventListener("input", function () { if (sponsorError) sponsorError.textContent = ""; });
+    if (sponsorUrl) sponsorUrl.addEventListener("input", function () { if (sponsorError) sponsorError.textContent = ""; });
+    if (teamName) teamName.addEventListener("input", function () { if (teamError) teamError.textContent = ""; });
+    if (teamNameZh) teamNameZh.addEventListener("input", function () { if (teamError) teamError.textContent = ""; });
+    if (teamIntro) teamIntro.addEventListener("input", function () { if (teamError) teamError.textContent = ""; });
+  }
+
+  async function initSiteContent() {
+    try {
+      const values = await Promise.all([
+        readSiteCollection("news"),
+        readSiteCollection("gallery"),
+        readSiteCollection("events"),
+        readSiteCollection("teams"),
+        readSiteCollection("sponsors")
+      ]);
+
+      siteState.news = sanitizeNews(values[0]) || [];
+      siteState.gallery = sanitizeGallery(values[1]) || [];
+      siteState.events = sanitizeEvents(values[2]) || [];
+      siteState.teams = sanitizeTeams(values[3]) || [];
+      siteState.sponsors = sanitizeSponsors(values[4]) || [];
+    } catch (error) {
+      siteState.news = [];
+      siteState.gallery = [];
+      siteState.events = [];
+      siteState.teams = [];
+      siteState.sponsors = [];
+    }
+
+    siteState.ready = true;
+    renderPosterWall();
+    renderNewsSection();
+    renderEventsPage();
+    renderTeamsPage();
+    renderSponsorBar();
+    renderNewsAdmin();
+    renderEventAdmin();
+    renderGalleryAdmin();
+    renderTeamAdmin();
+    renderSponsorAdmin();
+  }
+
+  initPosterDrop();
+  initPosterCarousel();
+  initPosterDev();
+  initContentDev();
+  initDetails();
+  initPosterLightbox();
+  initDonation();
+  initSiteContent();
+
+  // Make sure the visual menu state is reset when coming back through browser cache.
+  window.addEventListener("pageshow", () => {
+    if (desktopQuery.matches) setMenu(false, false);
+  });
+})();
