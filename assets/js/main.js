@@ -767,6 +767,21 @@
     if (!fullName && !cnName && !abbr) return null;
 
     const groups = Array.isArray(rawEvent.groups) ? rawEvent.groups : (Array.isArray(archive.groups) ? archive.groups : []);
+    const teamsRaw = Array.isArray(rawEvent.teams) ? rawEvent.teams : (Array.isArray(archive.teams) ? archive.teams : []);
+    const teams = teamsRaw.map(function (team, index) {
+      if (!team || typeof team !== "object") return null;
+      return {
+        id: String(team.id || "team-" + index),
+        name: String(team.name || "未命名车队"),
+        color: /^#[0-9a-f]{6}$/i.test(String(team.color || "")) ? team.color : EVENT_CHART_COLORS[index % EVENT_CHART_COLORS.length]
+      };
+    }).filter(Boolean);
+    const teamMap = Object.create(null);
+    teams.forEach(function (team) { teamMap[team.id] = team; });
+    const groupMap = Object.create(null);
+    groups.forEach(function (group) {
+      if (group && group.id) groupMap[String(group.id)] = group;
+    });
     const driversRaw = Array.isArray(archive.drivers) ? archive.drivers : [];
     const drivers = driversRaw.map(function (driver, index) {
       if (!driver || typeof driver !== "object") return null;
@@ -776,9 +791,24 @@
         number: String(driver.number || ""),
         group_id: String(driver.group_id || ""),
         group: String(driver.group || ""),
-        group_color: String(driver.group_color || "")
+        group_color: String(driver.group_color || ""),
+        team_id: String(driver.team_id || ""),
+        team: String(driver.team || ""),
+        team_color: String(driver.team_color || "")
       };
     }).filter(Boolean);
+    drivers.forEach(function (driver) {
+      const team = teamMap[driver.team_id];
+      const group = groupMap[driver.group_id];
+      if (team) {
+        if (!driver.team) driver.team = String(team.name || "");
+        if (!driver.team_color) driver.team_color = String(team.color || "");
+      }
+      if (group) {
+        if (!driver.group) driver.group = String(group.name || "");
+        if (!driver.group_color) driver.group_color = String(group.color || "");
+      }
+    });
 
     const seasonsRaw = Array.isArray(archive.seasons) ? archive.seasons : [];
     const seasons = seasonsRaw.map(function (season, seasonIndex) {
@@ -804,6 +834,7 @@
           id: String(rnd.id || "round-" + seasonIndex + "-" + roundIndex),
           name: String(rnd.name || "未命名分站"),
           date: String(rnd.date || ""),
+          notes: String(rnd.notes || ""),
           results: results
         });
       });
@@ -847,6 +878,7 @@
       logo: logo,
       points_enabled: Boolean(rawEvent.points_enabled),
       points_table: table,
+      teams: teams,
       groups: groups.filter(function (group) { return group && typeof group === "object"; }).map(function (group, index) {
         return {
           id: String(group.id || "group-" + index),
@@ -1729,6 +1761,54 @@
     devFileInput.multiple = !replaceId;
     devFileInput.value = "";
     devFileInput.click();
+  }
+
+  function bindImageDrop(input, zone) {
+    if (!input || !zone) return;
+    const picker = zone.closest(".dev-image-picker") || zone;
+    const setDrag = function (active) {
+      zone.classList.toggle("is-dragover", active);
+      picker.classList.toggle("is-dragover", active);
+    };
+    ["dragenter", "dragover"].forEach(function (name) {
+      zone.addEventListener(name, function (event) {
+        if (!event.dataTransfer) return;
+        event.preventDefault();
+        event.stopPropagation();
+        event.dataTransfer.dropEffect = "copy";
+        setDrag(true);
+      });
+    });
+    ["dragleave", "dragend"].forEach(function (name) {
+      zone.addEventListener(name, function (event) {
+        if (name === "dragleave" && event.relatedTarget && zone.contains(event.relatedTarget)) return;
+        setDrag(false);
+      });
+    });
+    zone.addEventListener("drop", function (event) {
+      event.preventDefault();
+      event.stopPropagation();
+      setDrag(false);
+      const files = Array.prototype.slice.call((event.dataTransfer && event.dataTransfer.files) || []);
+      const images = files.filter(isImageFile);
+      if (!images.length) {
+        showToast("请拖入图片文件。");
+        return;
+      }
+      const transfer = new DataTransfer();
+      images.forEach(function (file) { transfer.items.add(file); });
+      input.files = transfer.files;
+      input.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+  }
+
+  function initImageDrops() {
+    bindImageDrop(newsImageInput, newsImagePreview);
+    bindImageDrop(teamLogoInput, teamLogoPreview);
+    bindImageDrop(productLogoInput, productLogoPreview);
+    bindImageDrop(productImagesInput, productImagesPreview);
+    bindImageDrop(sponsorImageInput, sponsorImagePreview);
+    bindImageDrop(galleryFileInput, document.querySelector('[data-dev-view="gallery"] .dev-gallery-grid'));
   }
 
   function initPosterDrop() {
@@ -3108,15 +3188,372 @@
     return frag;
   }
 
+  function escEvent(value) {
+    return String(value == null ? "" : value)
+      .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+  }
+
+  function eventRounds(event, seasonId) {
+    const out = [];
+    event.seasons.forEach(function (season) {
+      if (seasonId && seasonId !== "all" && season.id !== seasonId) return;
+      season.rounds.forEach(function (round, index) {
+        out.push({ season: season, round: round, label: "R" + padPosterNumber(index + 1) });
+      });
+    });
+    return out;
+  }
+
+  function eventDriverMap(event) {
+    const map = Object.create(null);
+    event.drivers.forEach(function (driver) { map[driver.id] = driver; });
+    return map;
+  }
+
+  function eventTeamMap(event) {
+    const map = Object.create(null);
+    (event.teams || []).forEach(function (team) { map[team.id] = team; });
+    return map;
+  }
+
+  function eventDriverStandings(event, seasonId, groupId) {
+    const drivers = event.drivers.filter(function (driver) {
+      return !groupId || groupId === "all" || driver.group_id === groupId;
+    });
+    const map = Object.create(null);
+    drivers.forEach(function (driver) {
+      map[driver.id] = {
+        driver_id: driver.id,
+        driver_name: driver.name,
+        car_number: driver.number,
+        group_id: driver.group_id,
+        group: driver.group || "",
+        team_id: driver.team_id || "",
+        team: driver.team || "",
+        points: 0, starts: 0, wins: 0, podiums: 0
+      };
+    });
+    eventRounds(event, seasonId).forEach(function (item) {
+      (item.round.results || []).forEach(function (result) {
+        const row = map[result.driver_id];
+        if (!row) return;
+        const position = Number(result.position) || 0;
+        row.points += Number(result.points) || 0;
+        row.starts += 1;
+        if (position === 1) row.wins += 1;
+        if (position >= 1 && position <= 3) row.podiums += 1;
+      });
+    });
+    const rows = Object.keys(map).map(function (key) { return map[key]; });
+    rows.sort(function (a, b) {
+      if (b.points !== a.points) return b.points - a.points;
+      if (b.wins !== a.wins) return b.wins - a.wins;
+      return String(a.car_number).localeCompare(String(b.car_number), undefined, { numeric: true });
+    });
+    rows.forEach(function (row, index) { row.rank = index + 1; });
+    return rows;
+  }
+
+  function eventTeamStandings(event, seasonId) {
+    const members = Object.create(null);
+    event.drivers.forEach(function (driver) {
+      if (!driver.team_id) return;
+      (members[driver.team_id] = members[driver.team_id] || []).push(driver.id);
+    });
+    const rows = (event.teams || []).map(function (team) {
+      return {
+        team_id: team.id, team_name: team.name, color: team.color,
+        drivers: (members[team.id] || []).length, points: 0, starts: 0, wins: 0, podiums: 0
+      };
+    });
+    const map = Object.create(null);
+    rows.forEach(function (row) { map[row.team_id] = row; });
+    eventRounds(event, seasonId).forEach(function (item) {
+      (item.round.results || []).forEach(function (result) {
+        const driver = event.drivers.find(function (entry) { return entry.id === result.driver_id; });
+        if (!driver || !driver.team_id || !map[driver.team_id]) return;
+        const row = map[driver.team_id];
+        const position = Number(result.position) || 0;
+        row.points += Number(result.points) || 0;
+        row.starts += 1;
+        if (position === 1) row.wins += 1;
+        if (position >= 1 && position <= 3) row.podiums += 1;
+      });
+    });
+    rows.sort(function (a, b) {
+      if (b.points !== a.points) return b.points - a.points;
+      if (b.wins !== a.wins) return b.wins - a.wins;
+      return String(a.team_name).localeCompare(String(b.team_name));
+    });
+    rows.forEach(function (row, index) { row.rank = index + 1; });
+    return rows;
+  }
+
+  function eventDriverSeries(event, seasonId, groupId) {
+    const rounds = eventRounds(event, seasonId);
+    const drivers = event.drivers.filter(function (driver) {
+      return !groupId || groupId === "all" || driver.group_id === groupId;
+    });
+    return {
+      labels: rounds.map(function (item) { return item.label + " · " + item.round.name; }),
+      series: drivers.map(function (driver, index) {
+        let total = 0;
+        return {
+          id: driver.id,
+          label: (driver.number ? "#" + driver.number + " " : "") + driver.name,
+          color: driver.group_color || EVENT_CHART_COLORS[index % EVENT_CHART_COLORS.length],
+          values: rounds.map(function (item) {
+            const result = (item.round.results || []).find(function (entry) { return entry.driver_id === driver.id; });
+            total += result ? Number(result.points) || 0 : 0;
+            return total;
+          })
+        };
+      })
+    };
+  }
+
+  function eventTeamSeries(event, seasonId, teamId) {
+    const rounds = eventRounds(event, seasonId);
+    const teams = (event.teams || []).filter(function (team) { return !teamId || teamId === "all" || team.id === teamId; });
+    return {
+      labels: rounds.map(function (item) { return item.label + " · " + item.round.name; }),
+      series: teams.map(function (team, index) {
+        const memberIds = event.drivers.filter(function (driver) { return driver.team_id === team.id; }).map(function (driver) { return driver.id; });
+        let total = 0;
+        return {
+          id: team.id,
+          label: team.name,
+          color: team.color || EVENT_CHART_COLORS[index % EVENT_CHART_COLORS.length],
+          values: rounds.map(function (item) {
+            (item.round.results || []).forEach(function (result) {
+              if (memberIds.indexOf(result.driver_id) >= 0) total += Number(result.points) || 0;
+            });
+            return total;
+          })
+        };
+      })
+    };
+  }
+
+  function eventLineChart(labels, series, aria) {
+    const wrapper = detailElement("div", "event-line-chart");
+    if (!series.length || !labels.length) {
+      wrapper.append(detailElement("p", "detail-note", "暂无可视化积分数据。"));
+      return wrapper;
+    }
+    const width = 900, height = 270;
+    const pad = { left: 42, right: 18, top: 18, bottom: 48 };
+    const plotW = width - pad.left - pad.right;
+    const plotH = height - pad.top - pad.bottom;
+    let maxValue = 10;
+    series.forEach(function (entry) { entry.values.forEach(function (value) { maxValue = Math.max(maxValue, Number(value) || 0); }); });
+    maxValue = Math.max(10, Math.ceil(maxValue / 10) * 10);
+    const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    svg.setAttribute("viewBox", "0 0 " + width + " " + height);
+    svg.setAttribute("role", "img");
+    svg.setAttribute("aria-label", aria);
+    for (let i = 0; i <= 4; i += 1) {
+      const y = pad.top + (plotH / 4) * i;
+      const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
+      line.setAttribute("x1", String(pad.left)); line.setAttribute("x2", String(width - pad.right));
+      line.setAttribute("y1", String(y)); line.setAttribute("y2", String(y));
+      line.setAttribute("stroke", "rgba(255,255,255,0.08)"); svg.append(line);
+      const text = document.createElementNS("http://www.w3.org/2000/svg", "text");
+      text.setAttribute("x", String(pad.left - 8)); text.setAttribute("y", String(y + 3));
+      text.setAttribute("text-anchor", "end"); text.setAttribute("fill", "#727278"); text.setAttribute("font-size", "8");
+      text.textContent = String(Math.round(maxValue - (maxValue / 4) * i)); svg.append(text);
+    }
+    const xAt = function (index) {
+      return labels.length <= 1 ? pad.left + plotW / 2 : pad.left + (plotW * index) / (labels.length - 1);
+    };
+    const yAt = function (value) { return pad.top + plotH - (Math.max(0, Number(value) || 0) / maxValue) * plotH; };
+    labels.forEach(function (label, index) {
+      if (labels.length > 8 && index % Math.ceil(labels.length / 8) !== 0 && index !== labels.length - 1) return;
+      const text = document.createElementNS("http://www.w3.org/2000/svg", "text");
+      text.setAttribute("x", String(xAt(index))); text.setAttribute("y", String(height - 14));
+      text.setAttribute("text-anchor", "middle"); text.setAttribute("fill", "#727278"); text.setAttribute("font-size", "8");
+      text.textContent = "R" + padPosterNumber(index + 1); svg.append(text);
+    });
+    series.forEach(function (entry) {
+      const points = entry.values.map(function (value, index) { return xAt(index) + "," + yAt(value); }).join(" ");
+      const polyline = document.createElementNS("http://www.w3.org/2000/svg", "polyline");
+      polyline.setAttribute("points", points); polyline.setAttribute("fill", "none");
+      polyline.setAttribute("stroke", entry.color); polyline.setAttribute("stroke-width", "2");
+      polyline.setAttribute("stroke-linecap", "round"); polyline.setAttribute("stroke-linejoin", "round"); svg.append(polyline);
+      entry.values.forEach(function (value, index) {
+        const dot = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+        dot.setAttribute("cx", String(xAt(index))); dot.setAttribute("cy", String(yAt(value)));
+        dot.setAttribute("r", "2.2"); dot.setAttribute("fill", entry.color); svg.append(dot);
+      });
+    });
+    wrapper.append(svg);
+    const legend = detailElement("div", "chart-legend");
+    series.forEach(function (entry) {
+      const item = detailElement("span", "chart-legend-item");
+      const dot = detailElement("i"); dot.style.background = entry.color;
+      item.append(dot, document.createTextNode(entry.label)); legend.append(item);
+    });
+    wrapper.append(legend);
+    return wrapper;
+  }
+
+  function eventBarChart(labels, values, color) {
+    const wrapper = detailElement("div", "event-bar-chart");
+    if (!values.length) {
+      wrapper.append(detailElement("p", "detail-note", "暂无分站积分数据。"));
+      return wrapper;
+    }
+    const max = Math.max.apply(null, values.concat([1]));
+    values.forEach(function (value, index) {
+      const col = detailElement("div", "event-bar-col");
+      col.append(detailElement("span", "event-bar-value", fmtEventNumber(value)));
+      const track = detailElement("div", "event-bar-track");
+      const fill = detailElement("div", "event-bar-fill");
+      fill.style.height = Math.max(2, Math.round((Number(value) / max) * 100)) + "%";
+      fill.style.background = color;
+      track.append(fill); col.append(track);
+      col.append(detailElement("span", "event-bar-label", "R" + padPosterNumber(index + 1)));
+      col.title = (labels[index] || "") + " · " + fmtEventNumber(value) + " PTS";
+      wrapper.append(col);
+    });
+    return wrapper;
+  }
+
+  function eventFilterSelect(name, label, options, value) {
+    const field = detailElement("label", "event-filter-field");
+    field.append(detailElement("span", "", label));
+    const select = document.createElement("select");
+    select.dataset.eventFilter = name;
+    options.forEach(function (option) {
+      const item = document.createElement("option");
+      item.value = option[0]; item.textContent = option[1];
+      if (option[0] === value) item.selected = true;
+      select.append(item);
+    });
+    field.append(select);
+    return field;
+  }
+
+  function eventPointsHTML(event) {
+    const state = eventDetailState;
+    const seasonOptions = [["all", "全部赛季"]].concat(event.seasons.map(function (season) { return [season.id, season.name]; }));
+    const groupOptions = [["all", "全部组别"]].concat(event.groups.map(function (group) { return [group.id, group.name]; }));
+    const teamOptions = [["all", "全部车队"]].concat((event.teams || []).map(function (team) { return [team.id, team.name]; }));
+    const driverRows = eventDriverStandings(event, state.season, state.group);
+    const teamRows = eventTeamStandings(event, state.season);
+    const driverSeries = eventDriverSeries(event, state.season, state.group);
+    const teamSeries = eventTeamSeries(event, state.season, state.team);
+    const filters = '<div class="event-filter-bar" aria-label="积分筛选">' +
+      '<span class="event-filter-title">筛选 / FILTER</span>' +
+      eventFilterSelect("season", "赛季", seasonOptions, state.season).outerHTML +
+      eventFilterSelect("group", "组别", groupOptions, state.group).outerHTML +
+      eventFilterSelect("team", "车队", teamOptions, state.team).outerHTML +
+      '</div>';
+    const driverTable = createDataTable(
+      ["#", "车手", "车队", "组别", "积分", "出赛", "胜场"],
+      driverRows.map(function (row) {
+        return [row.rank, row.driver_name, row.team || "—", row.group || "—", fmtEventNumber(row.points), row.starts, row.wins];
+      })
+    );
+    const teamTable = createDataTable(
+      ["#", "车队", "车手", "积分", "胜场", "领奖台"],
+      teamRows.map(function (row) {
+        return [row.rank, row.team_name, row.drivers, fmtEventNumber(row.points), row.wins, row.podiums];
+      })
+    );
+    return filters +
+      '<section class="event-detail-section"><h3 class="detail-heading">车手积分榜 / DRIVERS</h3>' +
+      (driverRows.length ? driverTable.outerHTML : '<p class="detail-note">暂无车手积分数据。</p>') + '</section>' +
+      '<section class="event-detail-section"><h3 class="detail-heading">车队积分榜 / TEAMS</h3>' +
+      (teamRows.length ? teamTable.outerHTML : '<p class="detail-note">暂无车队积分数据。</p>') + '</section>' +
+      '<section class="event-detail-section"><h3 class="detail-heading">全车手积分走势 / ALL DRIVERS</h3><div id="eventDriverChart"></div></section>' +
+      '<section class="event-detail-section"><h3 class="detail-heading">全车队积分走势 / ALL TEAMS</h3><div id="eventTeamChart"></div></section>';
+  }
+
+  function eventInfoHTML(event) {
+    const state = eventDetailState;
+    const driverButtons = event.drivers.map(function (driver) {
+      return '<button class="event-person-chip" type="button" data-event-driver="' + escEvent(driver.id) + '">' +
+        escEvent((driver.number ? "#" + driver.number + " " : "") + driver.name) + '</button>';
+    }).join("");
+    const teamButtons = (event.teams || []).map(function (team) {
+      return '<button class="event-person-chip" type="button" data-event-team="' + escEvent(team.id) + '">' + escEvent(team.name) + '</button>';
+    }).join("");
+    let profile = "";
+    if (state.profile && state.profile.type === "driver") {
+      const driver = event.drivers.find(function (entry) { return entry.id === state.profile.id; });
+      if (driver) {
+        const series = eventDriverSeries(event, "all", "all");
+        const entry = series.series.find(function (item) { return item.id === driver.id; });
+        const bars = eventRounds(event, "all").map(function (item) {
+          const result = (item.round.results || []).find(function (row) { return row.driver_id === driver.id; });
+          return result ? Number(result.points) || 0 : 0;
+        });
+        profile = '<div class="event-profile-card"><div class="event-profile-head"><span>DRIVER / 车手</span><strong>' +
+          escEvent((driver.number ? "#" + driver.number + " " : "") + driver.name) + '</strong><small>' + escEvent(driver.group || "—") + ' · ' + escEvent(driver.team || "—") + '</small></div>' +
+          eventLineChart(series.labels, entry ? [entry] : [], driver.name + " 累计积分走势").outerHTML +
+          eventBarChart(series.labels, bars, driver.team_color || driver.group_color || "#ff4657").outerHTML + '</div>';
+      }
+    } else if (state.profile && state.profile.type === "team") {
+      const team = (event.teams || []).find(function (entry) { return entry.id === state.profile.id; });
+      if (team) {
+        const series = eventTeamSeries(event, "all", team.id);
+        const entry = series.series[0];
+        const bars = eventRounds(event, "all").map(function (item) {
+          let points = 0;
+          const memberIds = event.drivers.filter(function (driver) { return driver.team_id === team.id; }).map(function (driver) { return driver.id; });
+          (item.round.results || []).forEach(function (result) { if (memberIds.indexOf(result.driver_id) >= 0) points += Number(result.points) || 0; });
+          return points;
+        });
+        profile = '<div class="event-profile-card"><div class="event-profile-head"><span>TEAM / 车队</span><strong>' + escEvent(team.name) + '</strong><small>' +
+          event.drivers.filter(function (driver) { return driver.team_id === team.id; }).length + ' 位车手</small></div>' +
+          eventLineChart(series.labels, entry ? [entry] : [], team.name + " 累计积分走势").outerHTML +
+          eventBarChart(series.labels, bars, team.color).outerHTML + '</div>';
+      }
+    }
+    const seasons = event.seasons.map(function (season) {
+      const rounds = season.rounds.map(function (round, index) {
+        const results = (round.results || []).slice().sort(function (a, b) { return (a.position || 999) - (b.position || 999); });
+        return '<article class="event-info-round"><div class="event-info-round-head"><span>R' + padPosterNumber(index + 1) + '</span><strong>' + escEvent(round.name) + '</strong><small>' + escEvent(round.date || "日期待定") + '</small></div>' +
+          (round.notes ? '<p class="event-info-note">' + escEvent(round.notes) + '</p>' : '') +
+          (results.length ? results.map(function (result) {
+            const driver = event.drivers.find(function (entry) { return entry.id === result.driver_id; });
+            return '<div class="event-info-result"><span>' + result.position + '</span><strong>' + escEvent(result.driver_name || (driver && driver.name) || "—") + '</strong><small>' + escEvent(result.team || (driver && driver.team) || "—") + '</small><span>' + escEvent(result.gap || "—") + '</span><b>' + fmtEventNumber(result.points) + '</b></div>';
+          }).join("") : '<p class="detail-note">成绩待录入。</p>') + '</article>';
+      }).join("");
+      return '<section class="event-info-season"><h3>' + escEvent((season.year ? season.year + " · " : "") + season.name) + '</h3>' + (rounds || '<p class="detail-note">暂无分站。</p>') + '</section>';
+    }).join("");
+    return '<section class="event-people"><h3 class="detail-heading">车手 / DRIVERS</h3><div class="event-person-grid">' + (driverButtons || '<span class="detail-note">暂无车手。</span>') + '</div>' +
+      '<h3 class="detail-heading">车队 / TEAMS</h3><div class="event-person-grid">' + (teamButtons || '<span class="detail-note">暂无车队。</span>') + '</div></section>' +
+      profile + '<section class="event-info-seasons"><h3 class="detail-heading">赛季与分站 / SEASONS</h3>' + (seasons || '<p class="detail-note">暂无赛季数据。</p>') + '</section>';
+  }
+
+  function renderEventDetailContent() {
+    const host = document.getElementById("eventDetailContent");
+    if (!host || !eventDetailState) return;
+    const event = eventDetailState.event;
+    host.innerHTML = eventDetailState.tab === "points" ? eventPointsHTML(event) : eventInfoHTML(event);
+    document.querySelectorAll("[data-event-tab]").forEach(function (button) {
+      button.classList.toggle("is-active", button.dataset.eventTab === eventDetailState.tab);
+    });
+    if (eventDetailState.tab === "points") {
+      const driverHost = document.getElementById("eventDriverChart");
+      const teamHost = document.getElementById("eventTeamChart");
+      const drivers = eventDriverSeries(event, eventDetailState.season, eventDetailState.group);
+      const teams = eventTeamSeries(event, eventDetailState.season, eventDetailState.team);
+      if (driverHost) driverHost.append(eventLineChart(drivers.labels, drivers.series, "全车手积分走势"));
+      if (teamHost) teamHost.append(eventLineChart(teams.labels, teams.series, "全车队积分走势"));
+    }
+  }
+
   function buildEventDetail(event) {
     const frag = document.createDocumentFragment();
     const header = detailElement("div", "detail-identity");
     const logo = detailElement("div", "detail-logo detail-logo--event");
     if (event.logo) {
       const image = document.createElement("img");
-      image.src = event.logo;
-      image.alt = eventTitle(event) + " Logo";
-      logo.append(image);
+      image.src = event.logo; image.alt = eventTitle(event) + " Logo"; logo.append(image);
     } else {
       logo.append(detailElement("span", "", event.abbr || "FRLS"));
     }
@@ -3133,62 +3570,49 @@
     header.append(logo, copy);
     frag.append(header);
     if (event.intro) frag.append(detailElement("p", "detail-copy", event.intro));
-
     const roundCount = event.seasons.reduce(function (sum, season) { return sum + season.rounds.length; }, 0);
     const stats = detailElement("div", "detail-stats");
-    [
-      [String(event.drivers.length), "车手"],
-      [String(roundCount), "分站"],
-      [String(event.seasons.length), "赛季"],
-      [String(event.groups.length || 1), "组别"]
-    ].forEach(function (pair) {
-      const item = detailElement("div");
-      item.append(detailElement("strong", "", pair[0]), detailElement("span", "", pair[1]));
-      stats.append(item);
+    [[String(event.drivers.length), "车手"], [String(roundCount), "分站"], [String(event.seasons.length), "赛季"], [String((event.teams || []).length || 0), "车队"]].forEach(function (pair) {
+      const item = detailElement("div"); item.append(detailElement("strong", "", pair[0]), detailElement("span", "", pair[1])); stats.append(item);
     });
     frag.append(stats);
-
-    frag.append(detailElement("h3", "detail-heading", "累计积分 / POINTS"));
-    frag.append(createPointsChart(event));
-
-    frag.append(detailElement("h3", "detail-heading", "车手排名 / STANDINGS"));
-    if (event.standings.length) {
-      frag.append(createDataTable(
-        ["#", "车手", "车号", "组别", "积分", "出赛", "胜场", "领奖台"],
-        event.standings.map(function (row) {
-          return [row.rank, row.driver_name, row.car_number ? "#" + row.car_number : "—", row.group || "—", fmtEventNumber(row.points), row.starts, row.wins, row.podiums];
-        })
-      ));
-    } else {
-      frag.append(detailElement("p", "detail-note", "暂无排名数据。"));
-    }
-
-    event.seasons.forEach(function (season) {
-      frag.append(detailElement("h3", "detail-heading", (season.year ? season.year + " · " : "") + season.name));
-      if (!season.rounds.length) {
-        frag.append(detailElement("p", "detail-note", "暂无分站。"));
-        return;
-      }
-      season.rounds.forEach(function (rnd, index) {
-        const block = detailElement("section", "round-detail");
-        const head = detailElement("div", "round-detail-head");
-        head.append(detailElement("span", "", "R" + padPosterNumber(index + 1)));
-        head.append(detailElement("strong", "", rnd.name));
-        if (rnd.date) head.append(detailElement("small", "", rnd.date));
-        block.append(head);
-        if (rnd.results.length) {
-          block.append(createDataTable(
-            ["名次", "车手", "车号", "组别", "差距", "积分"],
-            rnd.results.map(function (result) {
-              return [result.position, result.driver_name, result.car_number ? "#" + result.car_number : "—", result.group || "—", result.gap || "—", fmtEventNumber(result.points)];
-            })
-          ));
-        } else {
-          block.append(detailElement("p", "detail-note", "成绩待录入。"));
-        }
-        frag.append(block);
-      });
+    const tabs = detailElement("div", "event-detail-tabs");
+    [["points", "积分栏"], ["info", "信息栏"]].forEach(function (pair) {
+      const button = detailElement("button", "event-detail-tab" + (pair[0] === "points" ? " is-active" : ""), pair[1]);
+      button.type = "button"; button.dataset.eventTab = pair[0]; tabs.append(button);
     });
+    frag.append(tabs);
+    const content = detailElement("div", "event-detail-content");
+    content.id = "eventDetailContent";
+    frag.append(content);
+    eventDetailState = { event: event, tab: "points", season: "all", group: "all", team: "all", profile: null };
+    tabs.addEventListener("click", function (event) {
+      const button = event.target.closest("[data-event-tab]");
+      if (!button) return;
+      eventDetailState.tab = button.dataset.eventTab;
+      renderEventDetailContent();
+    });
+    content.addEventListener("change", function (event) {
+      const select = event.target.closest("[data-event-filter]");
+      if (!select) return;
+      eventDetailState[select.dataset.eventFilter] = select.value;
+      if (select.dataset.eventFilter === "season") eventDetailState.profile = null;
+      renderEventDetailContent();
+    });
+    content.addEventListener("click", function (event) {
+      const driver = event.target.closest("[data-event-driver]");
+      const team = event.target.closest("[data-event-team]");
+      if (driver) {
+        eventDetailState.profile = { type: "driver", id: driver.dataset.eventDriver };
+        eventDetailState.tab = "info";
+        renderEventDetailContent();
+      } else if (team) {
+        eventDetailState.profile = { type: "team", id: team.dataset.eventTeam };
+        eventDetailState.tab = "info";
+        renderEventDetailContent();
+      }
+    });
+    renderEventDetailContent();
     return frag;
   }
 
@@ -3198,6 +3622,7 @@
   }
 
   let detailLastFocus = null;
+  let eventDetailState = null;
 
   function openDetail(type, id) {
     if (!detailModal || !detailBody) return;
@@ -3209,6 +3634,7 @@
 
     detailBody.innerHTML = "";
     detailBody.append(type === "news" ? buildNewsDetail(item) : type === "team" ? buildTeamDetail(item) : type === "product" ? buildProductDetail(item) : buildEventDetail(item));
+    if (type === "event") renderEventDetailContent();
     detailLastFocus = document.activeElement;
     detailModal.hidden = false;
     document.body.classList.add("detail-open");
@@ -3222,6 +3648,7 @@
     detailModal.hidden = true;
     document.body.classList.remove("detail-open");
     detailBody.innerHTML = "";
+    eventDetailState = null;
     if (detailLastFocus instanceof HTMLElement) detailLastFocus.focus({ preventScroll: true });
     detailLastFocus = null;
   }
@@ -4271,6 +4698,7 @@
   }
 
   initPosterDrop();
+  initImageDrops();
   initPosterCarousel();
   initPosterDev();
   initContentDev();
