@@ -794,7 +794,8 @@
         group_color: String(driver.group_color || ""),
         team_id: String(driver.team_id || ""),
         team: String(driver.team || ""),
-        team_color: String(driver.team_color || "")
+        team_color: String(driver.team_color || ""),
+        team_by_season: driver.team_by_season && typeof driver.team_by_season === "object" ? driver.team_by_season : {}
       };
     }).filter(Boolean);
     drivers.forEach(function (driver) {
@@ -3217,6 +3218,12 @@
     return map;
   }
 
+  function eventDriverTeam(driver, seasonId) {
+    const history = driver && driver.team_by_season ? driver.team_by_season : {};
+    if (seasonId && Object.prototype.hasOwnProperty.call(history, seasonId)) return history[seasonId] || "";
+    return (driver && driver.team_id) || "";
+  }
+
   function eventDriverStandings(event, seasonId, groupId) {
     const drivers = event.drivers.filter(function (driver) {
       return !groupId || groupId === "all" || driver.group_id === groupId;
@@ -3256,24 +3263,23 @@
   }
 
   function eventTeamStandings(event, seasonId) {
-    const members = Object.create(null);
-    event.drivers.forEach(function (driver) {
-      if (!driver.team_id) return;
-      (members[driver.team_id] = members[driver.team_id] || []).push(driver.id);
-    });
     const rows = (event.teams || []).map(function (team) {
       return {
         team_id: team.id, team_name: team.name, color: team.color,
-        drivers: (members[team.id] || []).length, points: 0, starts: 0, wins: 0, podiums: 0
+        members: Object.create(null), drivers: 0, points: 0, starts: 0, wins: 0, podiums: 0
       };
     });
     const map = Object.create(null);
     rows.forEach(function (row) { map[row.team_id] = row; });
+    const driverMap = eventDriverMap(event);
     eventRounds(event, seasonId).forEach(function (item) {
       (item.round.results || []).forEach(function (result) {
-        const driver = event.drivers.find(function (entry) { return entry.id === result.driver_id; });
-        if (!driver || !driver.team_id || !map[driver.team_id]) return;
-        const row = map[driver.team_id];
+        const driver = driverMap[result.driver_id];
+        if (!driver) return;
+        const teamId = eventDriverTeam(driver, item.season.id);
+        const row = map[teamId];
+        if (!row) return;
+        row.members[driver.id] = true;
         const position = Number(result.position) || 0;
         row.points += Number(result.points) || 0;
         row.starts += 1;
@@ -3281,6 +3287,7 @@
         if (position >= 1 && position <= 3) row.podiums += 1;
       });
     });
+    rows.forEach(function (row) { row.drivers = Object.keys(row.members).length; delete row.members; });
     rows.sort(function (a, b) {
       if (b.points !== a.points) return b.points - a.points;
       if (b.wins !== a.wins) return b.wins - a.wins;
@@ -3319,7 +3326,6 @@
     return {
       labels: rounds.map(function (item) { return item.label + " · " + item.round.name; }),
       series: teams.map(function (team, index) {
-        const memberIds = event.drivers.filter(function (driver) { return driver.team_id === team.id; }).map(function (driver) { return driver.id; });
         let total = 0;
         return {
           id: team.id,
@@ -3327,7 +3333,8 @@
           color: team.color || EVENT_CHART_COLORS[index % EVENT_CHART_COLORS.length],
           values: rounds.map(function (item) {
             (item.round.results || []).forEach(function (result) {
-              if (memberIds.indexOf(result.driver_id) >= 0) total += Number(result.points) || 0;
+              const driver = event.drivers.find(function (entry) { return entry.id === result.driver_id; });
+              if (driver && eventDriverTeam(driver, item.season.id) === team.id) total += Number(result.points) || 0;
             });
             return total;
           })
@@ -3502,12 +3509,16 @@
         const entry = series.series[0];
         const bars = eventRounds(event, "all").map(function (item) {
           let points = 0;
-          const memberIds = event.drivers.filter(function (driver) { return driver.team_id === team.id; }).map(function (driver) { return driver.id; });
-          (item.round.results || []).forEach(function (result) { if (memberIds.indexOf(result.driver_id) >= 0) points += Number(result.points) || 0; });
+          (item.round.results || []).forEach(function (result) {
+            const driver = event.drivers.find(function (entry) { return entry.id === result.driver_id; });
+            if (driver && eventDriverTeam(driver, item.season.id) === team.id) points += Number(result.points) || 0;
+          });
           return points;
         });
         profile = '<div class="event-profile-card"><div class="event-profile-head"><span>TEAM / 车队</span><strong>' + escEvent(team.name) + '</strong><small>' +
-          event.drivers.filter(function (driver) { return driver.team_id === team.id; }).length + ' 位车手</small></div>' +
+          event.drivers.filter(function (driver) {
+            return driver.team_id === team.id || Object.keys(driver.team_by_season || {}).some(function (seasonId) { return driver.team_by_season[seasonId] === team.id; });
+          }).length + ' 位车手</small></div>' +
           eventLineChart(series.labels, entry ? [entry] : [], team.name + " 累计积分走势").outerHTML +
           eventBarChart(series.labels, bars, team.color).outerHTML + '</div>';
       }
