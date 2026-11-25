@@ -301,6 +301,9 @@
             <button class="dev-rail-link" type="button" data-dev-view="sponsors">
               <i aria-hidden="true"></i><div><strong>赞助商</strong><small>SPONSORS</small></div>
             </button>
+            <button class="dev-rail-link" type="button" data-dev-view="thanks">
+              <i aria-hidden="true"></i><div><strong>感谢名单</strong><small>SPECIAL THANKS</small></div>
+            </button>
           </nav>
           <div class="dev-rail-foot">
             <span>STORAGE / STATUS</span>
@@ -630,6 +633,53 @@
 
             <div class="dev-workspace-foot">
               <span>官网底栏只显示彩色 Logo，不显示名称或感谢文字；没有链接的 Logo 不会跳转。</span>
+              <span>STATIC FILE / site-data.js</span>
+            </div>
+          </section>
+          <section class="dev-view" data-dev-view="thanks" hidden>
+            <div class="dev-workspace-head">
+              <div>
+                <p class="dev-kicker">SPECIAL THANKS / 感谢名单</p>
+                <h1>感谢名单</h1>
+                <p>添加需要感谢的人或团队。内容会显示在官网“关于”页面的感谢名单中，可添加说明和可选链接。</p>
+              </div>
+              <div class="dev-workspace-actions">
+                <span class="dev-count" id="thanksCount">0 条感谢</span>
+              </div>
+            </div>
+
+            <div class="dev-workspace-body">
+              <div class="dev-editor-layout">
+                <form class="dev-form" id="thanksForm" novalidate>
+                  <p class="dev-kicker">THANKS ENTRY / 新增感谢</p>
+                  <label class="dev-field">
+                    <span>名称</span>
+                    <input id="thanksName" type="text" maxlength="80" placeholder="例如：FRL Racing / 某位车手" autocomplete="off">
+                  </label>
+                  <label class="dev-field">
+                    <span>说明（选填）</span>
+                    <textarea id="thanksNote" rows="4" maxlength="300" placeholder="例如：赛道测试、赛事支持、技术协助"></textarea>
+                  </label>
+                  <label class="dev-field">
+                    <span>链接（选填）</span>
+                    <input id="thanksUrl" type="url" maxlength="300" placeholder="https://" autocomplete="off">
+                  </label>
+                  <p class="dev-error" id="thanksError" role="alert"></p>
+                  <div class="dev-form-actions">
+                    <button class="dev-btn dev-btn--ghost" id="thanksCancelEdit" type="button" hidden>取消编辑</button>
+                    <button class="dev-btn dev-btn--primary" type="submit">添加感谢</button>
+                  </div>
+                </form>
+
+                <div class="dev-editor-list">
+                  <div class="dev-list-head"><span>已添加感谢</span><span>DISPLAY ORDER</span></div>
+                  <div class="thanks-admin-list" id="thanksAdminList"></div>
+                </div>
+              </div>
+            </div>
+
+            <div class="dev-workspace-foot">
+              <span>感谢名单显示在关于页面的独立列表页；链接仅支持 http / https。</span>
               <span>STATIC FILE / site-data.js</span>
             </div>
           </section>

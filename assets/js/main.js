@@ -253,6 +253,16 @@
   const sponsorCount = document.getElementById("sponsorCount");
   const sponsorAdminList = document.getElementById("sponsorAdminList");
   const sponsorCancelEdit = document.getElementById("sponsorCancelEdit");
+  const thanksForm = document.getElementById("thanksForm");
+  const thanksName = document.getElementById("thanksName");
+  const thanksNote = document.getElementById("thanksNote");
+  const thanksUrl = document.getElementById("thanksUrl");
+  const thanksError = document.getElementById("thanksError");
+  const thanksCount = document.getElementById("thanksCount");
+  const thanksAdminList = document.getElementById("thanksAdminList");
+  const thanksCancelEdit = document.getElementById("thanksCancelEdit");
+  const thanksList = document.getElementById("thanksList");
+  const thanksEmpty = document.getElementById("thanksEmpty");
   const teamForm = document.getElementById("teamForm");
   const teamName = document.getElementById("teamName");
   const teamNameZh = document.getElementById("teamNameZh");
@@ -306,6 +316,7 @@
     teams: [],
     products: [],
     sponsors: [],
+    thanks: [],
     ready: false,
     activeView: "posters",
     newsDraftImage: "",
@@ -320,7 +331,9 @@
     productBusy: false,
     teamEditingId: "",
     sponsorEditingId: "",
-    productEditingId: ""
+    productEditingId: "",
+    thanksEditingId: "",
+    thanksBusy: false
   };
 
   const posterState = {
@@ -632,6 +645,36 @@
     });
 
     return clean.slice(0, 12);
+  }
+
+  function sanitizeThanks(value) {
+    if (!Array.isArray(value)) return null;
+    const clean = [];
+    const seen = Object.create(null);
+    value.forEach(function (item, index) {
+      if (!item || typeof item !== "object") return;
+      const name = typeof item.name === "string" ? item.name.trim() : "";
+      if (!name) return;
+      let id = typeof item.id === "string" && item.id ? item.id : "thanks-" + index;
+      if (seen[id]) id = id + "-" + index;
+      seen[id] = true;
+      let url = typeof item.url === "string" ? item.url.trim() : "";
+      if (url) {
+        try {
+          const parsed = new URL(url);
+          if (parsed.protocol !== "http:" && parsed.protocol !== "https:") url = "";
+        } catch (error) {
+          url = "";
+        }
+      }
+      clean.push({
+        id: id,
+        name: name.slice(0, 80),
+        note: typeof item.note === "string" ? item.note.trim().slice(0, 300) : "",
+        url: url.slice(0, 300)
+      });
+    });
+    return clean.slice(0, 100);
   }
 
   function sanitizeTeams(value) {
@@ -2199,6 +2242,43 @@
     });
   }
 
+  function renderThanksPage() {
+    if (!thanksList) return;
+    thanksList.innerHTML = "";
+    const items = siteState.thanks;
+    const hasItems = items.length > 0;
+    thanksList.hidden = !hasItems;
+    if (thanksEmpty) thanksEmpty.hidden = hasItems;
+    if (!hasItems) return;
+
+    items.forEach(function (item, index) {
+      const card = document.createElement("article");
+      card.className = "thanks-card";
+      const code = document.createElement("span");
+      code.className = "thanks-card__code";
+      code.textContent = "THANKS / " + padPosterNumber(index + 1);
+      const name = document.createElement("h2");
+      name.textContent = item.name;
+      card.append(code, name);
+      if (item.note) {
+        const note = document.createElement("p");
+        note.className = "thanks-card__note";
+        note.textContent = item.note;
+        card.append(note);
+      }
+      if (item.url) {
+        const link = document.createElement("a");
+        link.className = "thanks-card__link";
+        link.href = item.url;
+        link.target = "_blank";
+        link.rel = "noopener noreferrer";
+        link.textContent = "查看链接 ↗";
+        card.append(link);
+      }
+      thanksList.append(card);
+    });
+  }
+
   function renderEventsPage() {
     if (!eventGrid) return;
 
@@ -2606,6 +2686,62 @@
     });
   }
 
+  function renderThanksAdmin() {
+    if (!thanksAdminList) return;
+    if (thanksCount) thanksCount.textContent = siteState.thanks.length + " 条感谢";
+    thanksAdminList.innerHTML = "";
+    if (!siteState.thanks.length) {
+      thanksAdminList.append(siteAdminEmpty("NO THANKS YET", "添加后会显示在关于页面的感谢名单中。"));
+      return;
+    }
+    siteState.thanks.forEach(function (item) {
+      const row = document.createElement("article");
+      row.className = "thanks-admin-row";
+      row.dataset.id = item.id;
+      const info = document.createElement("div");
+      info.className = "thanks-admin-info";
+      const name = document.createElement("strong");
+      name.textContent = item.name;
+      info.append(name);
+      if (item.note) {
+        const note = document.createElement("span");
+        note.textContent = item.note;
+        info.append(note);
+      }
+      if (item.url) {
+        const link = document.createElement("a");
+        link.href = item.url;
+        link.target = "_blank";
+        link.rel = "noopener noreferrer";
+        link.textContent = item.url;
+        info.append(link);
+      }
+      const actions = detailElement("div", "dev-row-actions");
+      const edit = document.createElement("button");
+      edit.className = "dev-action";
+      edit.type = "button";
+      edit.dataset.thanksEdit = item.id;
+      edit.textContent = "编辑";
+      const remove = document.createElement("button");
+      remove.className = "dev-action dev-action--delete";
+      remove.type = "button";
+      remove.dataset.thanksDelete = item.id;
+      remove.textContent = "删除";
+      actions.append(edit, remove);
+      row.append(info, actions);
+      thanksAdminList.append(row);
+    });
+  }
+
+  function resetThanksForm() {
+    siteState.thanksEditingId = "";
+    if (thanksName) thanksName.value = "";
+    if (thanksNote) thanksNote.value = "";
+    if (thanksUrl) thanksUrl.value = "";
+    setFormEditMode(thanksForm, thanksCancelEdit, false, "添加感谢", "THANKS ENTRY / 新增感谢", "EDIT THANKS / 编辑感谢");
+    if (thanksError) thanksError.textContent = "";
+  }
+
   async function persistNews(next) {
     const saved = await writeSiteCollection("news", next);
     siteState.news = next;
@@ -2632,6 +2768,16 @@
     renderSponsorBar();
     renderSponsorAdmin();
     if (!saved) showToast("赞助商已更新，但无法保存到当前浏览器。");
+    queueSiteFileWrite();
+    return saved;
+  }
+
+  async function persistThanks(next) {
+    const saved = await writeSiteCollection("thanks", next);
+    siteState.thanks = next;
+    renderThanksPage();
+    renderThanksAdmin();
+    if (!saved) showToast("感谢名单已更新，但无法保存到当前浏览器。");
     queueSiteFileWrite();
     return saved;
   }
@@ -2712,7 +2858,8 @@
       events: siteState.events,
       teams: siteState.teams,
       products: siteState.products,
-      sponsors: siteState.sponsors
+      sponsors: siteState.sponsors,
+      thanks: siteState.thanks
     };
 
     return "/* FRLSports static site content. Generated by the developer console. */\n" +
@@ -2950,7 +3097,7 @@
   }
 
   function switchDevView(name) {
-    const valid = ["posters", "news", "events", "gallery", "teams", "products", "sponsors"].indexOf(name) >= 0 ? name : "posters";
+    const valid = ["posters", "news", "events", "gallery", "teams", "products", "sponsors", "thanks"].indexOf(name) >= 0 ? name : "posters";
     siteState.activeView = valid;
 
     devViews.forEach(function (view) {
@@ -2970,6 +3117,7 @@
     else if (valid === "events") renderEventAdmin();
     else if (valid === "gallery") renderGalleryAdmin();
     else if (valid === "sponsors") renderSponsorAdmin();
+    else if (valid === "thanks") renderThanksAdmin();
   }
 
   function detailElement(tag, className, text) {
@@ -4653,6 +4801,77 @@
     }
     if (productCancelEdit) productCancelEdit.addEventListener("click", resetProductForm);
 
+    if (thanksForm) {
+      thanksForm.addEventListener("submit", async function (event) {
+        event.preventDefault();
+        if (siteState.thanksBusy) return;
+        const name = thanksName ? thanksName.value.trim() : "";
+        const note = thanksNote ? thanksNote.value.trim() : "";
+        const rawUrl = thanksUrl ? thanksUrl.value.trim() : "";
+        let url = "";
+        if (!name) {
+          if (thanksError) thanksError.textContent = "名称不能为空。";
+          return;
+        }
+        if (rawUrl) {
+          try {
+            const parsed = new URL(rawUrl);
+            if (parsed.protocol !== "http:" && parsed.protocol !== "https:") throw new Error("Invalid protocol");
+            url = rawUrl;
+          } catch (error) {
+            if (thanksError) thanksError.textContent = "请输入有效的 http:// 或 https:// 链接。";
+            return;
+          }
+        }
+        siteState.thanksBusy = true;
+        const editingId = siteState.thanksEditingId;
+        const item = {
+          id: editingId || createSiteId("thanks"),
+          name: name.slice(0, 80),
+          note: note.slice(0, 300),
+          url: url.slice(0, 300)
+        };
+        const next = editingId
+          ? siteState.thanks.map(function (entry) { return entry.id === editingId ? item : entry; })
+          : siteState.thanks.concat(item);
+        try {
+          const saved = await persistThanks(next);
+          if (saved) {
+            showToast(editingId ? "感谢条目已更新。" : "感谢条目已添加。");
+            resetThanksForm();
+          }
+        } finally {
+          siteState.thanksBusy = false;
+        }
+      });
+    }
+
+    if (thanksAdminList) {
+      thanksAdminList.addEventListener("click", async function (event) {
+        const editButton = event.target.closest("[data-thanks-edit]");
+        if (editButton) {
+          const item = siteState.thanks.find(function (entry) { return entry.id === editButton.dataset.thanksEdit; });
+          if (!item) return;
+          siteState.thanksEditingId = item.id;
+          if (thanksName) thanksName.value = item.name;
+          if (thanksNote) thanksNote.value = item.note;
+          if (thanksUrl) thanksUrl.value = item.url;
+          setFormEditMode(thanksForm, thanksCancelEdit, true, "添加感谢", "THANKS ENTRY / 新增感谢", "EDIT THANKS / 编辑感谢");
+          if (thanksError) thanksError.textContent = "";
+          thanksForm?.scrollIntoView({ behavior: "smooth", block: "center" });
+          return;
+        }
+        const button = event.target.closest("[data-thanks-delete]");
+        if (!button) return;
+        if (!window.confirm("确认删除这条感谢？")) return;
+        if (siteState.thanksEditingId === button.dataset.thanksDelete) resetThanksForm();
+        const next = siteState.thanks.filter(function (item) { return item.id !== button.dataset.thanksDelete; });
+        const saved = await persistThanks(next);
+        if (saved) showToast("感谢条目已删除。");
+      });
+    }
+    if (thanksCancelEdit) thanksCancelEdit.addEventListener("click", resetThanksForm);
+
     if (newsTitle) newsTitle.addEventListener("input", function () { if (newsError) newsError.textContent = ""; });
     if (newsText) newsText.addEventListener("input", function () { if (newsError) newsError.textContent = ""; });
     if (newsAuthor) newsAuthor.addEventListener("input", function () { if (newsError) newsError.textContent = ""; });
@@ -4665,6 +4884,9 @@
     if (productNameZh) productNameZh.addEventListener("input", function () { if (productError) productError.textContent = ""; });
     if (productPrice) productPrice.addEventListener("input", function () { if (productError) productError.textContent = ""; });
     if (productIntro) productIntro.addEventListener("input", function () { if (productError) productError.textContent = ""; });
+    if (thanksName) thanksName.addEventListener("input", function () { if (thanksError) thanksError.textContent = ""; });
+    if (thanksNote) thanksNote.addEventListener("input", function () { if (thanksError) thanksError.textContent = ""; });
+    if (thanksUrl) thanksUrl.addEventListener("input", function () { if (thanksError) thanksError.textContent = ""; });
   }
 
   async function initSiteContent() {
@@ -4675,7 +4897,8 @@
         readSiteCollection("events"),
         readSiteCollection("teams"),
         readSiteCollection("products"),
-        readSiteCollection("sponsors")
+        readSiteCollection("sponsors"),
+        readSiteCollection("thanks")
       ]);
 
       siteState.news = sanitizeNews(values[0]) || [];
@@ -4684,6 +4907,7 @@
       siteState.teams = sanitizeTeams(values[3]) || [];
       siteState.products = sanitizeProducts(values[4]) || [];
       siteState.sponsors = sanitizeSponsors(values[5]) || [];
+      siteState.thanks = sanitizeThanks(values[6]) || [];
     } catch (error) {
       siteState.news = [];
       siteState.gallery = [];
@@ -4691,6 +4915,7 @@
       siteState.teams = [];
       siteState.products = [];
       siteState.sponsors = [];
+      siteState.thanks = [];
     }
 
     siteState.ready = true;
@@ -4706,6 +4931,8 @@
     renderTeamAdmin();
     renderProductAdmin();
     renderSponsorAdmin();
+    renderThanksAdmin();
+    renderThanksPage();
   }
 
   initPosterDrop();
